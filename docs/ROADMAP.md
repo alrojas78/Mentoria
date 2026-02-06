@@ -1,6 +1,6 @@
 # Mentoria 4.0 - Roadmap de Actualización Mayor
 
-## Estado actual: Fase 3 completada — Fase 4 en progreso
+## Estado actual: Fase 4 completada — Todas las fases implementadas
 
 ---
 
@@ -71,17 +71,38 @@
 **Archivos modificados:**
 - `frontend/src/pages/admin/AdminDocumentosPage.js` (refactor completo)
 
-### Fase 4: OpenAI Realtime API — Conversación fluida (En progreso)
-**Complejidad: ALTA | Prioridad: #4**
+### Fase 4: OpenAI Realtime API — Conversación fluida ✅
+**Complejidad: ALTA | Completada: 2026-02-06**
 
-- [ ] Crear `frontend/src/services/realtimeService.js` (WebSocket + AudioWorklet)
-- [ ] Modo dual en `ConsultaAsistentePage.js`: Texto ↔ Realtime
-- [ ] UI tipo llamada: botón central, indicador visual, transcripción
-- [ ] Variante iOS en `ConsultaAsistenteiPhone.js`
-- [ ] Manejo de errores y fallback automático a modo texto
-- [ ] Agregar endpoint realtime en `api.js`
+- [x] Crear `frontend/src/services/realtimeService.js`:
+  - Clase `RealtimeSession` con WebSocket + AudioWorklet (fallback ScriptProcessor)
+  - Captura de micrófono vía `getUserMedia` + envío PCM16
+  - Recepción y reproducción de audio PCM16 con cola de buffers
+  - Manejo de eventos: session.created, speech_started, response.audio.delta, etc.
+  - Interrupciones: cancela respuesta cuando usuario habla
+  - Helper `isRealtimeSupported()` para verificar compatibilidad
+- [x] Crear `frontend/src/components/RealtimePanel.js`:
+  - UI tipo llamada con indicador visual animado por estado
+  - Ondas rojas cuando el usuario habla, ondas cyan cuando AI responde
+  - Botón central para iniciar/terminar sesión
+  - Botón interrumpir durante respuesta AI
+  - Panel de transcripción en tiempo real (toggle mostrar/ocultar)
+  - Timer de duración de sesión
+- [x] Modo dual en `ConsultaAsistentePage.js`: botón "Modo Realtime" en welcome modal
+- [x] Modo dual en `ConsultaAsistenteiPhone.js`: mismo botón con manejo iOS
+- [x] Fallback automático a modo texto si WebSocket falla
+- [x] Agregar `realtimeSessionService` en `api.js`
 
-**Infraestructura existente:**
+**Archivos creados:**
+- `frontend/src/services/realtimeService.js`
+- `frontend/src/components/RealtimePanel.js`
+
+**Archivos modificados:**
+- `frontend/src/pages/ConsultaAsistentePage.js` (import + estado + render condicional + botón modal)
+- `frontend/src/pages/ConsultaAsistenteiPhone.js` (import + estado + render condicional + botón modal)
+- `frontend/src/services/api.js` (realtimeSessionService)
+
+**Infraestructura backend (ya existente):**
 - `backend/api/realtime-session.php`: sesión efímera con `client_secret`
 - Modelo: `gpt-4o-realtime-preview-2024-12-17`, voz: `sage`
 - VAD: server_vad, threshold 0.5, silence 500ms
@@ -92,7 +113,7 @@
 ## Orden de ejecución
 
 ```
-Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 4 🔄
+Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 4 ✅
  roles      imágenes     admin       realtime
  (ALTA)     (MEDIA)     (MEDIA)      (ALTA)
 ```
@@ -104,7 +125,7 @@ Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 4 🔄
 | **1** | ✅ | Registrar usuario con rol → solo ve documentos asignados → admin asigna roles |
 | **2** | ✅ | Crear documento con imagen → card muestra thumbnail → fallback sin imagen |
 | **3** | ✅ | Crear documento con tabs → anexos en creación → preview funciona |
-| **4** | 🔄 | Sesión Realtime → conversación bidireccional → fallback a modo texto |
+| **4** | ✅ | Sesión Realtime → conversación bidireccional → fallback a modo texto |
 
 ---
 

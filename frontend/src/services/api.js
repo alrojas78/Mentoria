@@ -607,6 +607,16 @@ export const retoService = {
   }
 };
 
+// Servicio de sesión Realtime (OpenAI Realtime API)
+export const realtimeSessionService = {
+  createSession: (documentId, mode = 'consulta') => {
+    return axios.post(`${API_BASE_URL}/realtime-session.php`, {
+      document_id: documentId,
+      mode: mode
+    });
+  }
+};
+
 export default {
   auth: authService,
   courses: courseService,

@@ -14,6 +14,8 @@ import { whisperService } from '../services/whisperService';
 import SilenceDetector from '../services/silenceDetector';
 import VideoMentorPopupiPhone from '../components/VideoMentorPopupiPhone';
 import MobileSidebarDrawer from '../components/MobileSidebarDrawer';
+import RealtimePanel from '../components/RealtimePanel';
+import { isRealtimeSupported } from '../services/realtimeService';
 import MentorProgressPanel from '../components/MentorProgressPanel';
 import EvaluationProgress from '../components/EvaluationProgress';
 import QuickQuestions from '../components/QuickQuestions';
@@ -76,6 +78,7 @@ const ConsultaAsistenteiPhone = () => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [firstInteraction, setFirstInteraction] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
+  const [useRealtimeMode, setUseRealtimeMode] = useState(false);
 
   // Estados para modo Reto
   const [retoState, setRetoState] = useState({
@@ -1230,6 +1233,19 @@ const handleModeChange = useCallback((newMode) => {
 
   if (isInitializing) return <div className="iphone-loading">Cargando...</div>;
 
+  // Modo Realtime: renderizar panel dedicado
+  if (useRealtimeMode) {
+    return (
+      <RealtimePanel
+        documentId={documentId}
+        mode={currentMode}
+        documentInfo={documentInfo}
+        onFallbackToText={() => setUseRealtimeMode(false)}
+        onGoBack={handleGoBack}
+      />
+    );
+  }
+
   return (
     <div className="iphone-container">
       <header className="iphone-header">
@@ -1358,6 +1374,22 @@ const handleModeChange = useCallback((newMode) => {
                     <span className="coming-soon-tag">Próximo: {retoState.proximoReto?.dia || 'Lun/Jue'}</span>
                   )}
                 </button>
+
+                {/* Botón Modo Realtime */}
+                {isRealtimeSupported() && (
+                  <button
+                    onClick={() => { setShowWelcomeModal(false); setUseRealtimeMode(true); }}
+                    className="mode-btn realtime"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(8, 145, 178, 0.2), rgba(34, 211, 238, 0.1))',
+                      border: '1px solid rgba(8, 145, 178, 0.4)',
+                      color: '#22D3EE'
+                    }}
+                  >
+                    <span>🎙 Modo Realtime</span>
+                    <span className="coming-soon-tag" style={{ color: '#22D3EE', background: 'rgba(8, 145, 178, 0.15)' }}>Conversacion por voz</span>
+                  </button>
+                )}
 
                 {/* Botón de Soporte */}
                 <button className="mode-btn support" disabled>

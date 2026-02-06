@@ -12,6 +12,8 @@ import MobileSidebarDrawer from '../components/MobileSidebarDrawer';
 import MentorProgressPanel from '../components/MentorProgressPanel';
 import EvaluationProgress from '../components/EvaluationProgress';
 import QuickQuestions from '../components/QuickQuestions';
+import RealtimePanel from '../components/RealtimePanel';
+import { isRealtimeSupported } from '../services/realtimeService';
 
 import './ConsultaAsistentePage.css';
 
@@ -156,6 +158,7 @@ const [retroalimentacionActiva, setRetroalimentacionActiva] = useState(false);
 const [numeroPregunta, setNumeroPregunta] = useState(null);
 const [videoIdRetro, setVideoIdRetro] = useState(null);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
+  const [useRealtimeMode, setUseRealtimeMode] = useState(false);
 
   // Estados para modo Reto
   const [retoState, setRetoState] = useState({
@@ -1500,6 +1503,19 @@ const handleCloseVideo = (lastTime, duration) => {
   if (!user) { return ( <div style={{ minHeight: '100vh', background: 'var(--color-background, #121826)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexDirection: 'column', gap: '20px' }}><p>Error: Usuario no autenticado</p><button onClick={() => navigate('/login')} style={{ background: 'var(--color-primary, #0891B2)', color: 'white', border: 'none', padding: '15px 30px', borderRadius: '25px' }}>Ir al Login</button></div> ); }
   if (isInitializing) { return ( <div style={{ minHeight: '100vh', background: 'var(--color-background, #121826)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Cargando asistente MentorIA...</div> ); }
 
+  // Modo Realtime: renderizar panel dedicado
+  if (useRealtimeMode) {
+    return (
+      <RealtimePanel
+        documentId={documentId}
+        mode={currentMode}
+        documentInfo={documentInfo}
+        onFallbackToText={() => setUseRealtimeMode(false)}
+        onGoBack={handleGoBack}
+      />
+    );
+  }
+
   return (
     <>
       <style>{`
@@ -2023,6 +2039,36 @@ Modos ▾
         </button>
 
       </div>
+
+      {/* Botón Modo Realtime */}
+      {isRealtimeSupported() && (
+        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border, rgba(255,255,255,0.1))', textAlign: 'center' }}>
+          <button
+            onClick={() => { setShowWelcomeModal(false); setUseRealtimeMode(true); }}
+            style={{
+              background: 'linear-gradient(135deg, rgba(8, 145, 178, 0.15), rgba(34, 211, 238, 0.1))',
+              border: '1px solid rgba(8, 145, 178, 0.4)',
+              borderRadius: '12px',
+              padding: '12px 24px',
+              color: '#22D3EE',
+              fontSize: '0.95rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            🎙 Modo Realtime — Conversacion por voz fluida
+          </button>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
+            Conversacion bidireccional en tiempo real con MentorIA
+          </p>
+        </div>
+      )}
 
       {/* Enlace para cambiar a vista iOS */}
       <div style={{
