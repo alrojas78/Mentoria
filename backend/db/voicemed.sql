@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   nombre VARCHAR(100) NOT NULL,
   email VARCHAR(100) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
-  role ENUM('admin', 'user') NOT NULL DEFAULT 'user',
+  role ENUM('admin', 'user', 'mentor', 'estudiante', 'coordinador') NOT NULL DEFAULT 'estudiante',
   created DATETIME NOT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -44,6 +44,16 @@ CREATE TABLE IF NOT EXISTS user_progress (
   PRIMARY KEY (id),
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
   FOREIGN KEY (lesson_id) REFERENCES lessons (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Tabla de mapeo documento-rol (segmentación de contenidos)
+CREATE TABLE IF NOT EXISTS documento_roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    documento_id INT NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (documento_id) REFERENCES documentos(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_doc_role (documento_id, role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Insertar datos de ejemplo para pruebas

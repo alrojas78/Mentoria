@@ -55,6 +55,50 @@ const ErrorMessage = styled.p`
   margin-bottom: 1rem;
 `;
 
+const RoleSelector = styled.div`
+  margin-bottom: 1rem;
+  text-align: left;
+`;
+
+const RoleLabel = styled.label`
+  display: block;
+  font-size: 0.9rem;
+  color: #2b4361;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+`;
+
+const RoleOptions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const RoleOption = styled.label`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.5rem;
+  border-radius: 8px;
+  border: 2px solid ${props => props.$selected ? '#0891B2' : '#ddd'};
+  background-color: ${props => props.$selected ? 'rgba(8, 145, 178, 0.08)' : '#fff'};
+  color: ${props => props.$selected ? '#0891B2' : '#6b7280'};
+  font-size: 0.85rem;
+  font-weight: ${props => props.$selected ? '600' : '400'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #0891B2;
+    background-color: rgba(8, 145, 178, 0.04);
+  }
+
+  input {
+    display: none;
+  }
+`;
+
 const RegisterPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -62,6 +106,7 @@ const RegisterPage = () => {
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('estudiante');
   const [error, setError] = useState('');
 
 // src/pages/RegisterPage.js
@@ -71,8 +116,8 @@ const handleSubmit = async (e) => {
   setError('');
 
   try {
-      console.log('Enviando datos de registro:', { nombre, email, password });
-      const response = await authService.register({ nombre, email, password });
+      console.log('Enviando datos de registro:', { nombre, email, password, role });
+      const response = await authService.register({ nombre, email, password, role });
       console.log('Respuesta completa del registro:', response);
       
       // Verificar que la respuesta contenga los datos necesarios
@@ -152,6 +197,23 @@ const handleSubmit = async (e) => {
           onChange={e => setPassword(e.target.value)}
           required
         />
+        <RoleSelector>
+          <RoleLabel>Tipo de cuenta:</RoleLabel>
+          <RoleOptions>
+            <RoleOption $selected={role === 'estudiante'}>
+              <input type="radio" name="role" value="estudiante" checked={role === 'estudiante'} onChange={(e) => setRole(e.target.value)} />
+              Estudiante
+            </RoleOption>
+            <RoleOption $selected={role === 'mentor'}>
+              <input type="radio" name="role" value="mentor" checked={role === 'mentor'} onChange={(e) => setRole(e.target.value)} />
+              Mentor
+            </RoleOption>
+            <RoleOption $selected={role === 'coordinador'}>
+              <input type="radio" name="role" value="coordinador" checked={role === 'coordinador'} onChange={(e) => setRole(e.target.value)} />
+              Coordinador
+            </RoleOption>
+          </RoleOptions>
+        </RoleSelector>
         {error && <ErrorMessage>{error}</ErrorMessage>}
         <Button type="submit">Crear cuenta</Button>
       </form>

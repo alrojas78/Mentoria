@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Incluir archivos de configuración
 include_once '../config/db.php';
+include_once '../middleware/AuthMiddleware.php';
 
 // Log para depuración
 $logFile = __DIR__ . '/docs_debug.log';
@@ -103,7 +104,20 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             }
             
             $document_id = $db->lastInsertId();
-            
+
+            // Insertar roles asignados al documento
+            $roles_input = isset($_POST['roles']) ? $_POST['roles'] : '';
+            $roles_array = !empty($roles_input) ? (is_array($roles_input) ? $roles_input : explode(',', $roles_input)) : ['admin', 'mentor', 'estudiante', 'coordinador'];
+            $allowed_roles = ['admin', 'mentor', 'estudiante', 'coordinador'];
+
+            foreach ($roles_array as $role) {
+                $role = trim($role);
+                if (in_array($role, $allowed_roles)) {
+                    $roleStmt = $db->prepare("INSERT IGNORE INTO documento_roles (documento_id, role) VALUES (?, ?)");
+                    $roleStmt->execute([$document_id, $role]);
+                }
+            }
+
             // Insertar configuración de evaluación
 $eval_query = "INSERT INTO doc_evaluacion_configuracion 
               (document_id, preguntas_por_evaluacion, porcentaje_aprobacion, tiene_certificado, max_intentos, 
@@ -180,11 +194,16 @@ if (isset($_GET['id'])) {
     $documento = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($documento) {
+        // Incluir roles asignados
+        $roleStmt = $db->prepare("SELECT role FROM documento_roles WHERE documento_id = ?");
+        $roleStmt->execute([$documento['id']]);
+        $documento['roles_asignados'] = $roleStmt->fetchAll(PDO::FETCH_COLUMN);
+
         // Incluir anexos automáticamente
         require_once '../models/Anexo.php';
         require_once '../config/attachments.php';
         $documento = includeAnexosInDocument($documento);
-        
+
         http_response_code(200);
         echo json_encode($documento);
     } else {
@@ -192,30 +211,81 @@ if (isset($_GET['id'])) {
         echo json_encode(["message" => "Documento no encontrado"]);
     }
 } 
-        // Listar todos los documentos
-// Listar todos los documentos
+        // Listar todos los documentos (filtrado por rol del usuario)
 else {
-    $query = "SELECT d.*,
-                     ec.preguntas_por_evaluacion,
-                     ec.porcentaje_aprobacion,
-                     ec.tiene_certificado,
-                     ec.max_intentos,
-                     ec.puntuacion_respuesta_completa,
-                     ec.puntuacion_respuesta_parcial,
-                     ec.puntuacion_respuesta_minima,
-                     ec.umbral_respuesta_parcial,
-                     ec.tiempo_respuesta_segundos
-              FROM documentos d
-              LEFT JOIN doc_evaluacion_configuracion ec ON d.id = ec.document_id
-              ORDER BY d.created DESC";
-            $stmt = $db->prepare($query);
-            $stmt->execute();
-            
-            $documentos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            http_response_code(200);
-            echo json_encode($documentos);
+    // Obtener usuario autenticado (opcional para no romper accesos existentes)
+    $userData = AuthMiddleware::optionalAuth();
+    $userRole = $userData ? $userData->role : null;
+
+    if ($userRole === 'admin') {
+        // Admin ve todos los documentos
+        $query = "SELECT d.*,
+                         ec.preguntas_por_evaluacion,
+                         ec.porcentaje_aprobacion,
+                         ec.tiene_certificado,
+                         ec.max_intentos,
+                         ec.puntuacion_respuesta_completa,
+                         ec.puntuacion_respuesta_parcial,
+                         ec.puntuacion_respuesta_minima,
+                         ec.umbral_respuesta_parcial,
+                         ec.tiempo_respuesta_segundos
+                  FROM documentos d
+                  LEFT JOIN doc_evaluacion_configuracion ec ON d.id = ec.document_id
+                  ORDER BY d.created DESC";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+    } else if ($userRole) {
+        // Usuarios con rol: solo documentos asignados a su rol
+        $query = "SELECT d.*,
+                         ec.preguntas_por_evaluacion,
+                         ec.porcentaje_aprobacion,
+                         ec.tiene_certificado,
+                         ec.max_intentos,
+                         ec.puntuacion_respuesta_completa,
+                         ec.puntuacion_respuesta_parcial,
+                         ec.puntuacion_respuesta_minima,
+                         ec.umbral_respuesta_parcial,
+                         ec.tiempo_respuesta_segundos
+                  FROM documentos d
+                  INNER JOIN documento_roles dr ON d.id = dr.documento_id AND dr.role = :role
+                  LEFT JOIN doc_evaluacion_configuracion ec ON d.id = ec.document_id
+                  ORDER BY d.created DESC";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':role', $userRole);
+        $stmt->execute();
+    } else {
+        // Sin autenticación: todos los documentos (backwards compatible)
+        $query = "SELECT d.*,
+                         ec.preguntas_por_evaluacion,
+                         ec.porcentaje_aprobacion,
+                         ec.tiene_certificado,
+                         ec.max_intentos,
+                         ec.puntuacion_respuesta_completa,
+                         ec.puntuacion_respuesta_parcial,
+                         ec.puntuacion_respuesta_minima,
+                         ec.umbral_respuesta_parcial,
+                         ec.tiempo_respuesta_segundos
+                  FROM documentos d
+                  LEFT JOIN doc_evaluacion_configuracion ec ON d.id = ec.document_id
+                  ORDER BY d.created DESC";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+    }
+
+    $documentos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Agregar roles asignados a cada documento (útil para admin)
+    if ($userRole === 'admin') {
+        foreach ($documentos as &$doc) {
+            $roleStmt = $db->prepare("SELECT role FROM documento_roles WHERE documento_id = ?");
+            $roleStmt->execute([$doc['id']]);
+            $doc['roles_asignados'] = $roleStmt->fetchAll(PDO::FETCH_COLUMN);
         }
+    }
+
+    http_response_code(200);
+    echo json_encode($documentos);
+}
     }
 else if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         $data = json_decode(file_get_contents("php://input"), true);
@@ -287,6 +357,24 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
                 throw new Exception("Error al actualizar documento");
             }
             
+            // Actualizar roles del documento si se proporcionan
+            if (isset($data['roles'])) {
+                $roles_array = is_array($data['roles']) ? $data['roles'] : explode(',', $data['roles']);
+                $allowed_roles = ['admin', 'mentor', 'estudiante', 'coordinador'];
+
+                // Eliminar roles anteriores
+                $db->prepare("DELETE FROM documento_roles WHERE documento_id = ?")->execute([$id]);
+
+                // Insertar nuevos roles
+                foreach ($roles_array as $role) {
+                    $role = trim($role);
+                    if (in_array($role, $allowed_roles)) {
+                        $roleStmt = $db->prepare("INSERT IGNORE INTO documento_roles (documento_id, role) VALUES (?, ?)");
+                        $roleStmt->execute([$id, $role]);
+                    }
+                }
+            }
+
             // Actualizar o insertar configuración de evaluación
             $eval_check = $db->prepare("SELECT id FROM doc_evaluacion_configuracion WHERE document_id = ?");
             $eval_check->execute([$id]);

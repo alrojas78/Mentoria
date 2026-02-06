@@ -22,6 +22,9 @@ const [puntuacionMinima, setPuntuacionMinima] = useState(0.40);
 const [umbralParcial, setUmbralParcial] = useState(0.30);
 const [tiempoRespuesta, setTiempoRespuesta] = useState(60);
 
+const [rolesAsignados, setRolesAsignados] = useState(['admin', 'mentor', 'estudiante', 'coordinador']);
+const ROLES_DISPONIBLES = ['admin', 'mentor', 'estudiante', 'coordinador'];
+
   useEffect(() => {
     cargarDocumentos();
   }, []);
@@ -67,7 +70,8 @@ try {
   puntuacion_respuesta_parcial: puntuacionParcial,
   puntuacion_respuesta_minima: puntuacionMinima,
   umbral_respuesta_parcial: umbralParcial,
-  tiempo_respuesta_segundos: tiempoRespuesta
+  tiempo_respuesta_segundos: tiempoRespuesta,
+  roles: rolesAsignados
         };
 
 console.log('📤 Datos a enviar:', updateData);
@@ -90,6 +94,7 @@ console.log('📤 Datos a enviar:', updateData);
         formData.append('puntuacion_respuesta_minima', puntuacionMinima.toString());
         formData.append('umbral_respuesta_parcial', umbralParcial.toString());
         formData.append('tiempo_respuesta_segundos', tiempoRespuesta.toString());
+        formData.append('roles', rolesAsignados.join(','));
 
         await consultaService.createDocumento(formData);
         setMensaje('Documento creado correctamente.');
@@ -116,6 +121,7 @@ console.log('📤 Datos a enviar:', updateData);
     setPuntuacionMinima(doc.puntuacion_respuesta_minima || 0.40);
     setUmbralParcial(doc.umbral_respuesta_parcial || 0.30);
     setTiempoRespuesta(doc.tiempo_respuesta_segundos || 60);
+    setRolesAsignados(doc.roles_asignados || ['admin', 'mentor', 'estudiante', 'coordinador']);
     setMostrarConfigEvaluacion(true);
     setMensaje('');
     setError('');
@@ -146,6 +152,7 @@ const limpiarFormulario = () => {
     setPuntuacionMinima(0.40);
     setUmbralParcial(0.30);
     setTiempoRespuesta(60);
+    setRolesAsignados(['admin', 'mentor', 'estudiante', 'coordinador']);
     setMostrarConfigEvaluacion(false);
     setMensaje('');
     setError('');
@@ -182,6 +189,30 @@ const limpiarFormulario = () => {
           <div>
             <label>Contenido:</label>
             <textarea value={contenido} onChange={(e) => setContenido(e.target.value)} style={{ width: '100%', marginBottom: '1rem', minHeight: '150px', padding: '0.5rem' }} />
+          </div>
+
+          {/* Roles de acceso */}
+          <div style={{ border: '1px solid #ddd', borderRadius: '8px', padding: '1rem', marginBottom: '1rem', backgroundColor: '#f8f9fa' }}>
+            <h3 style={{ margin: '0 0 0.75rem 0', color: '#2b4361', fontSize: '1rem' }}>Roles de acceso</h3>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              {ROLES_DISPONIBLES.map((r) => (
+                <label key={r} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.95rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={rolesAsignados.includes(r)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setRolesAsignados([...rolesAsignados, r]);
+                      } else {
+                        setRolesAsignados(rolesAsignados.filter(role => role !== r));
+                      }
+                    }}
+                    style={{ accentColor: '#0891B2' }}
+                  />
+                  <span style={{ textTransform: 'capitalize' }}>{r}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Configuración de Evaluación */}
@@ -376,6 +407,17 @@ const limpiarFormulario = () => {
         <span><strong>🔄 Intentos:</strong> {doc.max_intentos || 3}</span>
         <span><strong>🏆 Certificado:</strong> {doc.tiene_certificado ? 'Sí' : 'No'}</span>
       </div>
+      {doc.roles_asignados && (
+        <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: '0.85rem' }}>Roles:</strong>
+          {doc.roles_asignados.map(r => (
+            <span key={r} style={{
+              backgroundColor: '#0891B2', color: '#fff', padding: '0.1rem 0.5rem',
+              borderRadius: '12px', fontSize: '0.75rem', textTransform: 'capitalize'
+            }}>{r}</span>
+          ))}
+        </div>
+      )}
     </div>
 
     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

@@ -85,7 +85,13 @@ if ($action == 'login') {
     $user->nombre = $data->nombre;
     $user->email = $data->email;
     $user->password = password_hash($data->password, PASSWORD_BCRYPT);
-    $user->role = !empty($data->role) ? $data->role : 'user';
+    // Validar rol: solo roles permitidos en registro (no admin)
+    $allowed_register_roles = ['estudiante', 'mentor', 'coordinador'];
+    if (!empty($data->role) && in_array($data->role, $allowed_register_roles)) {
+        $user->role = $data->role;
+    } else {
+        $user->role = 'estudiante';
+    }
     $user->created = date('Y-m-d H:i:s');
     
     // Verificar si el email ya existe
