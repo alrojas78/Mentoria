@@ -496,6 +496,7 @@ $eval_stmt->bindParam(':tiempo', $tiempo_respuesta_segundos);
     }
     
     // PATCH - Subir/actualizar imagen de un documento
+    // Nota: PHP no popula $_FILES para PATCH, se usa POST con action=upload_image como alternativa
     else if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
         $id = $_GET['id'] ?? null;
         if (!$id) {
@@ -504,34 +505,66 @@ $eval_stmt->bindParam(':tiempo', $tiempo_respuesta_segundos);
             exit();
         }
 
-        if (!isset($_FILES['imagen']) || $_FILES['imagen']['error'] !== UPLOAD_ERR_OK) {
-            http_response_code(400);
-            echo json_encode(["message" => "No se recibió imagen válida"]);
-            exit();
+        // Para PATCH, parsear manualmente el multipart body
+        $imagen_path = null;
+        $putdata = file_get_contents('php://input');
+
+        // Obtener boundary del Content-Type
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (preg_match('/boundary=(.+)$/i', $contentType, $matches)) {
+            $boundary = $matches[1];
+            $parts = explode('--' . $boundary, $putdata);
+
+            foreach ($parts as $part) {
+                if (empty(trim($part)) || $part === '--') continue;
+
+                // Separar headers del contenido
+                $segments = explode("\r\n\r\n", $part, 2);
+                if (count($segments) < 2) continue;
+
+                $headers_str = $segments[0];
+                $body = rtrim($segments[1], "\r\n");
+
+                // Verificar que es el campo imagen
+                if (strpos($headers_str, 'name="imagen"') !== false) {
+                    // Extraer filename
+                    if (preg_match('/filename="([^"]+)"/', $headers_str, $fn_matches)) {
+                        $original_name = $fn_matches[1];
+
+                        // Extraer content-type
+                        $file_type = 'application/octet-stream';
+                        if (preg_match('/Content-Type:\s*(.+)/i', $headers_str, $ct_matches)) {
+                            $file_type = trim($ct_matches[1]);
+                        }
+
+                        $allowed_types = ['image/jpeg', 'image/png', 'image/webp'];
+                        $max_size = 2 * 1024 * 1024;
+
+                        if (!in_array($file_type, $allowed_types)) {
+                            http_response_code(400);
+                            echo json_encode(["message" => "Tipo de imagen no permitido. Use JPEG, PNG o WebP."]);
+                            exit();
+                        }
+                        if (strlen($body) > $max_size) {
+                            http_response_code(400);
+                            echo json_encode(["message" => "La imagen excede el tamaño máximo de 2MB."]);
+                            exit();
+                        }
+
+                        $ext = pathinfo($original_name, PATHINFO_EXTENSION);
+                        $safe_name = 'doc_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                        $upload_dir = __DIR__ . '/../uploads/documentos/';
+                        $dest = $upload_dir . $safe_name;
+
+                        if (file_put_contents($dest, $body)) {
+                            $imagen_path = 'uploads/documentos/' . $safe_name;
+                        }
+                    }
+                }
+            }
         }
 
-        $file = $_FILES['imagen'];
-        $allowed_types = ['image/jpeg', 'image/png', 'image/webp'];
-        $max_size = 2 * 1024 * 1024;
-
-        if (!in_array($file['type'], $allowed_types)) {
-            http_response_code(400);
-            echo json_encode(["message" => "Tipo de imagen no permitido. Use JPEG, PNG o WebP."]);
-            exit();
-        }
-        if ($file['size'] > $max_size) {
-            http_response_code(400);
-            echo json_encode(["message" => "La imagen excede el tamaño máximo de 2MB."]);
-            exit();
-        }
-
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $safe_name = 'doc_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-        $upload_dir = __DIR__ . '/../uploads/documentos/';
-        $dest = $upload_dir . $safe_name;
-
-        if (move_uploaded_file($file['tmp_name'], $dest)) {
-            $imagen_path = 'uploads/documentos/' . $safe_name;
+        if ($imagen_path) {
             $stmt = $db->prepare("UPDATE documentos SET imagen = ? WHERE id = ?");
             $stmt->execute([$imagen_path, $id]);
 
@@ -541,8 +574,8 @@ $eval_stmt->bindParam(':tiempo', $tiempo_respuesta_segundos);
                 "imagen" => $imagen_path
             ]);
         } else {
-            http_response_code(500);
-            echo json_encode(["message" => "Error al guardar la imagen"]);
+            http_response_code(400);
+            echo json_encode(["message" => "No se recibió imagen válida"]);
         }
     }
 
