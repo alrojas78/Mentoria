@@ -8,3 +8,4 @@ backend/uploads/
 backend/logs/
 *.log
 .DS_Store
+.claude/
