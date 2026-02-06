@@ -360,6 +360,15 @@ updateDocumento: (data) => {
   });
 },
   
+  // Subir/actualizar imagen de un documento
+  uploadDocumentoImagen: (documentId, file) => {
+    const formData = new FormData();
+    formData.append('imagen', file);
+    return axios.patch(`${API_BASE_URL}/documentos.php?id=${documentId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
   // Eliminar un documento
   deleteDocumento: (id) => {
     return axios.delete(`${API_BASE_URL}/documentos.php?id=${id}`);

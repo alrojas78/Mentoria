@@ -24,6 +24,10 @@ const [tiempoRespuesta, setTiempoRespuesta] = useState(60);
 
 const [rolesAsignados, setRolesAsignados] = useState(['admin', 'mentor', 'estudiante', 'coordinador']);
 const ROLES_DISPONIBLES = ['admin', 'mentor', 'estudiante', 'coordinador'];
+const BACKEND_BASE = 'https://mentoria.ateneo.co/backend';
+
+const [imagenFile, setImagenFile] = useState(null);
+const [imagenPreview, setImagenPreview] = useState(null);
 
   useEffect(() => {
     cargarDocumentos();
@@ -77,6 +81,10 @@ try {
 console.log('📤 Datos a enviar:', updateData);
 
         await consultaService.updateDocumento(updateData);
+        // Subir imagen si se seleccionó una nueva
+        if (imagenFile) {
+          await consultaService.uploadDocumentoImagen(editingDoc.id, imagenFile);
+        }
         setMensaje('Documento actualizado correctamente.');
       } else {
         console.log('➕ CREANDO nuevo documento');
@@ -95,6 +103,9 @@ console.log('📤 Datos a enviar:', updateData);
         formData.append('umbral_respuesta_parcial', umbralParcial.toString());
         formData.append('tiempo_respuesta_segundos', tiempoRespuesta.toString());
         formData.append('roles', rolesAsignados.join(','));
+        if (imagenFile) {
+          formData.append('imagen', imagenFile);
+        }
 
         await consultaService.createDocumento(formData);
         setMensaje('Documento creado correctamente.');
@@ -122,6 +133,8 @@ console.log('📤 Datos a enviar:', updateData);
     setUmbralParcial(doc.umbral_respuesta_parcial || 0.30);
     setTiempoRespuesta(doc.tiempo_respuesta_segundos || 60);
     setRolesAsignados(doc.roles_asignados || ['admin', 'mentor', 'estudiante', 'coordinador']);
+    setImagenFile(null);
+    setImagenPreview(doc.imagen ? `${BACKEND_BASE}/${doc.imagen}` : null);
     setMostrarConfigEvaluacion(true);
     setMensaje('');
     setError('');
@@ -153,6 +166,8 @@ const limpiarFormulario = () => {
     setUmbralParcial(0.30);
     setTiempoRespuesta(60);
     setRolesAsignados(['admin', 'mentor', 'estudiante', 'coordinador']);
+    setImagenFile(null);
+    setImagenPreview(null);
     setMostrarConfigEvaluacion(false);
     setMensaje('');
     setError('');
@@ -189,6 +204,29 @@ const limpiarFormulario = () => {
           <div>
             <label>Contenido:</label>
             <textarea value={contenido} onChange={(e) => setContenido(e.target.value)} style={{ width: '100%', marginBottom: '1rem', minHeight: '150px', padding: '0.5rem' }} />
+          </div>
+
+          {/* Imagen destacada */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label>Imagen destacada:</label>
+            {imagenPreview && (
+              <div style={{ marginBottom: '0.5rem' }}>
+                <img src={imagenPreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', objectFit: 'cover' }} />
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  setImagenFile(file);
+                  setImagenPreview(URL.createObjectURL(file));
+                }
+              }}
+              style={{ width: '100%', padding: '0.5rem' }}
+            />
+            <small style={{ color: '#666' }}>JPEG, PNG o WebP. Máximo 2MB. Proporción 16:9 recomendada.</small>
           </div>
 
           {/* Roles de acceso */}

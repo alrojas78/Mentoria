@@ -19,6 +19,8 @@ const ICONS = {
   tag: "M17.63 5.84C17.27 5.48 16.8 5.27 16.27 5.27H9.27C8.16 5.27 7.27 6.16 7.27 7.27v7c0 .53.21 1 .57 1.37l6.36 6.36c.36.36.86.57 1.37.57.5 0 1-.21 1.37-.57l6.36-6.36c.36-.36.57-.86.57-1.37V9.27c0-.53-.21-1-.57-1.37l-6.37-6.36z"
 };
 
+const BACKEND_BASE = 'https://mentoria.ateneo.co/backend';
+
 const DocumentosPage = () => {
   const { user } = useAuth();
   const { speak } = useVoice();
@@ -144,6 +146,42 @@ const DocumentosPage = () => {
                 onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 15px 30px rgba(0, 0, 0, 0.2)'; }}
                 onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
+                {/* Imagen destacada */}
+                <div style={{
+                  width: '100%',
+                  aspectRatio: '16/9',
+                  borderRadius: '8px',
+                  marginBottom: '1rem',
+                  overflow: 'hidden',
+                  backgroundColor: '#1a2332',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {doc.imagen ? (
+                    <img
+                      src={`${BACKEND_BASE}/${doc.imagen}`}
+                      alt={doc.titulo}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                    />
+                  ) : null}
+                  <div style={{
+                    display: doc.imagen ? 'none' : 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: 'var(--color-text-secondary)'
+                  }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                </div>
+
                 <h2 style={{ fontSize: '1.3rem', fontWeight: '600', color: 'var(--color-text-primary)', margin: '0 0 0.75rem 0', borderLeft: '3px solid var(--color-primary)', paddingLeft: '1rem' }}>
                   {doc.titulo}
                 </h2>

@@ -4,7 +4,7 @@
 // Headers
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
@@ -84,25 +84,53 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             exit();
         }
         
-        // Insertar documento
-// Insertar documento con configuración de evaluación
+        // Manejar upload de imagen destacada
+        $imagen_path = null;
+        if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['imagen'];
+            $allowed_types = ['image/jpeg', 'image/png', 'image/webp'];
+            $max_size = 2 * 1024 * 1024; // 2MB
+
+            if (!in_array($file['type'], $allowed_types)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Tipo de imagen no permitido. Use JPEG, PNG o WebP."]);
+                exit();
+            }
+            if ($file['size'] > $max_size) {
+                http_response_code(400);
+                echo json_encode(["message" => "La imagen excede el tamaño máximo de 2MB."]);
+                exit();
+            }
+
+            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $safe_name = 'doc_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+            $upload_dir = __DIR__ . '/../uploads/documentos/';
+            $dest = $upload_dir . $safe_name;
+
+            if (move_uploaded_file($file['tmp_name'], $dest)) {
+                $imagen_path = 'uploads/documentos/' . $safe_name;
+            }
+        }
+
+        // Insertar documento con configuración de evaluación
         try {
             // Iniciar transacción
             $db->beginTransaction();
-            
+
             // Insertar documento
-            $query = "INSERT INTO documentos (titulo, descripcion, contenido, created) 
-                      VALUES (:titulo, :descripcion, :contenido, NOW())";
+            $query = "INSERT INTO documentos (titulo, descripcion, contenido, imagen, created)
+                      VALUES (:titulo, :descripcion, :contenido, :imagen, NOW())";
                       
             $stmt = $db->prepare($query);
             $stmt->bindParam(':titulo', $titulo);
             $stmt->bindParam(':descripcion', $descripcion);
             $stmt->bindParam(':contenido', $contenido);
-            
+            $stmt->bindParam(':imagen', $imagen_path);
+
             if (!$stmt->execute()) {
                 throw new Exception("Error al insertar documento");
             }
-            
+
             $document_id = $db->lastInsertId();
 
             // Insertar roles asignados al documento
@@ -345,13 +373,21 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             // Iniciar transacción
             $db->beginTransaction();
             
-            // Actualizar documento
-            $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido WHERE id = :id";
+            // Actualizar documento (incluir imagen si se proporciona)
+            $imagen_update = isset($data['imagen']) ? $data['imagen'] : null;
+            if ($imagen_update !== null) {
+                $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido, imagen = :imagen WHERE id = :id";
+            } else {
+                $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido WHERE id = :id";
+            }
             $stmt = $db->prepare($query);
             $stmt->bindParam(':id', $id);
             $stmt->bindParam(':titulo', $titulo);
             $stmt->bindParam(':descripcion', $descripcion);
             $stmt->bindParam(':contenido', $contenido);
+            if ($imagen_update !== null) {
+                $stmt->bindParam(':imagen', $imagen_update);
+            }
             
             if (!$stmt->execute()) {
                 throw new Exception("Error al actualizar documento");
@@ -459,14 +495,65 @@ $eval_stmt->bindParam(':tiempo', $tiempo_respuesta_segundos);
         }
     }
     
+    // PATCH - Subir/actualizar imagen de un documento
+    else if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
+        $id = $_GET['id'] ?? null;
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode(["message" => "ID es obligatorio"]);
+            exit();
+        }
+
+        if (!isset($_FILES['imagen']) || $_FILES['imagen']['error'] !== UPLOAD_ERR_OK) {
+            http_response_code(400);
+            echo json_encode(["message" => "No se recibió imagen válida"]);
+            exit();
+        }
+
+        $file = $_FILES['imagen'];
+        $allowed_types = ['image/jpeg', 'image/png', 'image/webp'];
+        $max_size = 2 * 1024 * 1024;
+
+        if (!in_array($file['type'], $allowed_types)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Tipo de imagen no permitido. Use JPEG, PNG o WebP."]);
+            exit();
+        }
+        if ($file['size'] > $max_size) {
+            http_response_code(400);
+            echo json_encode(["message" => "La imagen excede el tamaño máximo de 2MB."]);
+            exit();
+        }
+
+        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $safe_name = 'doc_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $upload_dir = __DIR__ . '/../uploads/documentos/';
+        $dest = $upload_dir . $safe_name;
+
+        if (move_uploaded_file($file['tmp_name'], $dest)) {
+            $imagen_path = 'uploads/documentos/' . $safe_name;
+            $stmt = $db->prepare("UPDATE documentos SET imagen = ? WHERE id = ?");
+            $stmt->execute([$imagen_path, $id]);
+
+            http_response_code(200);
+            echo json_encode([
+                "message" => "Imagen actualizada correctamente",
+                "imagen" => $imagen_path
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["message" => "Error al guardar la imagen"]);
+        }
+    }
+
 } catch (Exception $e) {
     // Rollback si hay una transacción activa
     if ($db->inTransaction()) {
         $db->rollback();
     }
-    
+
     file_put_contents($logFile, date('Y-m-d H:i:s') . " - Error principal: " . $e->getMessage() . "\n", FILE_APPEND);
-    
+
     http_response_code(500);
     echo json_encode([
         "message" => "Error del servidor: " . $e->getMessage()
