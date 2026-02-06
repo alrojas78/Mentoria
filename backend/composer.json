@@ -1,0 +1,13 @@
+{
+    "require": {
+        "aws/aws-sdk-php": "^3.342",
+        "firebase/php-jwt": "^6.4",
+        "vlucas/phpdotenv": "^5.5",
+        "dompdf/dompdf": "^3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "VoiceMed\\": ""
+        }
+    }
+}

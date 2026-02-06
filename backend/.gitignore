@@ -1,0 +1,30 @@
+# Environment files
+.env
+*.env
+
+# Vendor directory (if using composer)
+vendor/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Cache
+cache/
+tmp/
+
+# Audio files generated
+audio/
+
+# Uploads
+uploads/

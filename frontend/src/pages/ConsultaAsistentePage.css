@@ -1,0 +1,918 @@
+/* ConsultaAsistentePage.css */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/** {
+  border: 1px solid red !important;
+}*/
+
+/* Animaciones */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(74, 144, 226, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 144, 226, 0); }
+}
+
+@keyframes thinking {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(30px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+/* Contenedor principal */
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+  pointer-events: none;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  color: white;
+  font-size: 1.2rem;
+}
+
+/* Zona de presencia IA */
+.ai-presence-zone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.ai-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #4a90e2, #7b68ee);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  font-size: 2rem;
+}
+
+.ai-avatar.speaking {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+.ai-avatar::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #4a90e2, #7b68ee, #ff6b6b, #4ecdc4);
+  z-index: -1;
+}
+
+.ai-avatar.listening::before {
+  animation: pulse 2s infinite;
+}
+
+.ai-status {
+  margin-left: 20px;
+  color: white;
+}
+
+.ai-status h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.ai-status p {
+  margin: 5px 0 0 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.mode-indicator {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  animation: float 3s ease-in-out infinite;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Área de conversación */
+.conversation-area {
+  padding: 140px 20px 120px;
+  max-width: 800px;
+  margin: 0 auto;
+  min-height: calc(100vh - 260px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* NUEVO: Ajuste para panel lateral en desktop */
+@media (min-width: 1201px) {
+  .conversation-area {
+    margin-right: 340px; /* 320px panel + 20px gap */
+  }
+}
+
+.message-bubble {
+  max-width: 85%;
+  margin: 15px 0;
+  padding: 18px 24px;
+  border-radius: 24px;
+  animation: slideUp 0.4s ease-out;
+  line-height: 1.5;
+}
+
+.message-bubble.user {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: white;
+  border-bottom-right-radius: 8px;
+  box-shadow: 0 4px 20px rgba(74, 144, 226, 0.3);
+  align-self: flex-end;
+}
+
+.message-bubble.assistant {
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
+  border-bottom-left-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  align-self: flex-start;
+}
+
+/* Indicador de pensamiento */
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 24px;
+  border-bottom-left-radius: 8px;
+  margin: 15px 0;
+  align-self: flex-start;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4a90e2;
+  animation: thinking 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+.dot:nth-child(3) { animation-delay: 0s; }
+
+.thinking-indicator .text {
+  margin-left: 15px;
+  color: #666;
+  font-style: italic;
+  background: linear-gradient(90deg, #666, #999, #666);
+  background-size: 200% auto;
+  color: transparent;
+  background-clip: text;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Imágenes */
+.image-display {
+  margin: 10px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.chat-image {
+  width: 100%;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.chat-image:hover {
+  transform: scale(1.05);
+}
+
+/* Panel de control */
+.control-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.9) 100%);
+  backdrop-filter: blur(20px);
+  padding: 20px;
+  z-index: 1000;
+}
+
+.interaction-zone {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.voice-button {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(45deg, #4a90e2, #357abd);
+  color: white;
+  font-size: 1.8rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.voice-button:hover {
+  transform: scale(1.1);
+}
+
+.voice-button:active {
+  transform: scale(0.95);
+}
+
+.voice-button.listening {
+  background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+  animation: pulse 2s infinite;
+}
+
+.voice-button.speaking {
+  background: linear-gradient(45deg, #4ecdc4, #44bd32);
+}
+
+.text-input {
+  flex: 1;
+  padding: 18px 24px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 1rem;
+  backdrop-filter: blur(10px);
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.text-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.text-input:focus {
+  border-color: #4a90e2;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 20px rgba(74, 144, 226, 0.3);
+}
+
+.send-button {
+  padding: 18px 24px;
+  border: none;
+  border-radius: 25px;
+  background: linear-gradient(45deg, #4a90e2, #357abd);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.send-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(74, 144, 226, 0.4);
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Modal inicial */
+
+/* Modal inicial MEJORADO - Versión Oscura */
+.initial-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(15px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  padding: 45px;
+  border-radius: 24px;
+  text-align: center;
+  max-width: 580px;
+  width: 90%;
+  margin: 20px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6), 
+              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  animation: slideUpModal 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-content h2 {
+  color: #F1F5F9;
+  margin-bottom: 15px;
+  font-size: 2rem;
+  font-weight: 700;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content > p {
+  color: #94A3B8;
+  margin-bottom: 35px;
+  line-height: 1.6;
+  font-size: 1.05rem;
+}
+
+/* Contenedor de botones de modo */
+.mode-selection-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 25px;
+}
+
+/* Botones de modo en el modal */
+.mode-button {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.mode-button:hover::before {
+  left: 100%;
+}
+
+.mode-button:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+}
+
+.mode-button:active {
+  transform: translateY(-2px) scale(1.01);
+}
+
+.mode-button-icon {
+  font-size: 2.8rem;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+.mode-button-content h3 {
+  margin: 0 0 6px 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #F1F5F9;
+  letter-spacing: -0.3px;
+}
+
+.mode-button-content p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #CBD5E1;
+  line-height: 1.5;
+}
+
+/* Colores específicos por modo con gradientes */
+.mode-button.consulta:hover {
+  border-color: #22D3EE;
+  box-shadow: 0 12px 35px rgba(34, 211, 238, 0.4),
+              0 0 0 1px rgba(34, 211, 238, 0.2) inset;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(8, 145, 178, 0.1) 100%);
+}
+
+.mode-button.mentor:hover {
+  border-color: #34D399;
+  box-shadow: 0 12px 35px rgba(52, 211, 153, 0.4),
+              0 0 0 1px rgba(52, 211, 153, 0.2) inset;
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%);
+}
+
+.mode-button.evaluacion:hover {
+  border-color: #FBBF24;
+  box-shadow: 0 12px 35px rgba(251, 191, 36, 0.4),
+              0 0 0 1px rgba(251, 191, 36, 0.2) inset;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%);
+}
+
+/* Modo Reto */
+.mode-button.reto {
+  border-color: rgba(139, 92, 246, 0.3);
+  position: relative;
+}
+
+.mode-button.reto:hover:not(.disabled) {
+  border-color: #8B5CF6;
+  box-shadow: 0 12px 35px rgba(139, 92, 246, 0.4),
+              0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(124, 58, 237, 0.1) 100%);
+}
+
+.mode-button.reto.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mode-button.reto.disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.mode-button-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(139, 92, 246, 0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUpModal {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Responsive para modal */
+@media (max-width: 768px) {
+  .modal-content {
+    padding: 30px 25px;
+    max-width: 95%;
+  }
+  
+  .modal-content h2 {
+    font-size: 1.6rem;
+  }
+  
+  .mode-button {
+    padding: 18px;
+    gap: 14px;
+  }
+  
+  .mode-button-icon {
+    font-size: 2.2rem;
+  }
+  
+  .mode-button-content h3 {
+    font-size: 1.1rem;
+  }
+  
+  .mode-button-content p {
+    font-size: 0.85rem;
+  }
+}
+
+/*FINAL MODAL INICIAL*/
+
+
+
+
+.image-modal-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 90%;
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .message-bubble {
+    max-width: 90%;
+    padding: 14px 18px;
+    font-size: 0.95rem;
+  }
+  
+  .mode-indicator {
+    top: 10px;
+    right: 10px;
+    font-size: 0.7rem;
+    padding: 6px 12px;
+  }
+  
+  .interaction-zone {
+    gap: 10px;
+    padding: 0 5px;
+  }
+  
+  .voice-button {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+  
+  .text-input {
+    padding: 14px 18px;
+    font-size: 0.95rem;
+  }
+  
+  .send-button {
+    padding: 14px 18px;
+    font-size: 0.9rem;
+  }
+  
+  .modal-content {
+    padding: 30px 20px;
+    margin: 15px;
+  }
+  
+  .modal-content h2 {
+    font-size: 1.5rem;
+  }
+  
+  .image-display {
+    grid-template-columns: 1fr;
+  }
+  
+  .chat-image {
+    max-width: 250px;
+    justify-self: center;
+  }
+
+
+/* === AJUSTES BOTÓN CALIBRACIÓN MÓVIL === */
+.calibration-button {
+  bottom: 100px; /* ARREGLO 2: Sube el botón para que no choque con el footer */
+  right: 15px;
+  width: 45px;
+  height: 45px;
+  font-size: 1.1rem;
+}
+
+/* === AJUSTES FOOTER MÓVIL === */
+.page-footer > div {
+  padding: 15px 10px;
+  gap: 10px;
+}
+
+.page-footer input[type="text"] {
+  padding: 14px 55px 14px 20px; /* Hacemos espacio para el botón 'Enviar' */
+  font-size: 0.95rem;
+}
+
+.page-footer input[type="text"] + button {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  right: 7px; /* Posiciona el botón 'Enviar' */
+}
+
+/* Ajusta el botón de micrófono principal */
+.page-footer > div > div:nth-child(1) {
+  width: 48px;
+  height: 48px;
+}
+.page-footer > div > div:nth-child(1) button {
+  width: 48px;
+  height: 48px;
+  font-size: 1.2rem;
+}
+
+/* Oculta el botón de detener narración en móvil si es muy grande */
+.page-footer button[title="Detener narración (FORZADO)"] {
+    padding: 10px;
+    font-size: 0.8rem;
+}
+
+
+
+}
+
+/* Animaciones para dispositivos con movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Animaciones para calibración de audio */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseRingAvatar {
+  0% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+}
+
+/* === ESTILOS BOTÓN CALIBRACIÓN === */
+.calibration-button {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1001; /* <-- ARREGLO 1: Z-INDEX MÁS ALTO QUE EL FOOTER (1000) */
+  font-size: 1.3rem;
+  transition: all 0.3s ease;
+}
+
+.calibration-button:hover {
+  transform: scale(1.1);
+}
+
+/*
+  FIX: Mover el 'display: flex' del JS al CSS
+  para que @media query pueda sobreescribirlo con 'display: none'.
+*/
+
+.mode-indicator-desktop {
+  display: flex;
+}
+.mode-buttons-desktop {
+  display: flex;
+}
+
+/* === ESTILOS DROPDOWN MODOS MÓVIL === */
+
+/* Por defecto (desktop), ocultamos el botón móvil y el menú */
+.mode-button-mobile {
+  display: none;
+}
+.mode-dropdown-overlay {
+  display: none;
+}
+
+/* Estilos del menú (serán visibles en móvil) */
+.mode-dropdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050; /* Encima de todo menos el modal */
+  background: rgba(0,0,0,0.3);
+  animation: fadeIn 0.2s ease;
+}
+.mode-dropdown-menu {
+  background: var(--color-surface, #1E293B);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: absolute;
+  top: 85px; /* Ajustar según altura del header móvil */
+  right: 15px;
+  animation: slideUpModal 0.3s ease-out;
+}
+.mode-dropdown-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary, #F1F5F9);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.95rem;
+  width: 100%;
+}
+.mode-dropdown-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+
+/* === AJUSTES DENTRO DE @media (max-width: 768px) === */
+@media (max-width: 768px) {
+  
+  /* Ocultamos los indicadores/botones de desktop */
+  .mode-indicator-desktop,
+  .mode-buttons-desktop {
+    display: none;
+  }
+  
+  /* Mostramos el botón de toggle móvil */
+  .mode-button-mobile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  /* Mostramos el menú (cuando el estado sea true) */
+  .mode-dropdown-overlay {
+    display: block;
+  }
+  
+  /* Damos altura fija al header móvil para alinear el menú */
+  .page-header {
+    height: 75px; 
+    align-items: center;
+  }
+  .mode-dropdown-menu {
+    top: 80px; /* (75px header + 5px margen) */
+  }
+
+  /* === ARREGLO BOTÓN CALIBRACIÓN === */
+  /* Lo subimos más y aseguramos su Z-INDEX */
+  .calibration-button {
+    bottom: 100px; /* Sube el botón para que no choque con el footer */
+    right: 15px;
+    width: 45px;
+    height: 45px;
+    font-size: 1.1rem;
+    z-index: 1001; /* <-- Se asegura que esté SOBRE el footer (que tiene 1000) */
+  }
+}
+
+/* Estilos para Markdown procesado */
+.chat-bubble strong {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.chat-bubble em {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.chat-bubble h2 {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin: 12px 0 8px 0;
+  color: var(--color-primary);
+}
+
+.chat-bubble h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 10px 0 6px 0;
+  color: var(--color-text-primary);
+}
+
+.chat-bubble ul {
+  margin: 8px 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.chat-bubble li {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.chat-bubble br {
+  display: block;
+  content: "";
+  margin: 4px 0;
+}

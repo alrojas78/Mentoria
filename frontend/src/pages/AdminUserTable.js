@@ -1,0 +1,665 @@
+// src/components/AdminUserTable.js (actualizado)
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { userService } from '../services/api';
+import { FaEdit, FaTrash, FaFilter, FaSearch, FaUserShield, FaUser, FaChalkboardTeacher } from 'react-icons/fa';
+
+const Container = styled.div`
+  padding: 1rem;
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+`;
+
+const Th = styled.th`
+  background-color: #0f8fac;
+  color: white;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ccc;
+`;
+
+const Td = styled.td`
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+`;
+
+const Button = styled.button`
+  background-color: ${props => props.danger ? '#e74c3c' : props.primary ? '#2b4361' : '#f1f1f1'};
+  color: ${props => props.danger || props.primary ? 'white' : '#333'};
+  border: none;
+  padding: 0.4rem 0.7rem;
+  border-radius: 5px;
+  margin-right: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
+const SearchContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+`;
+
+const SearchInput = styled.div`
+  position: relative;
+  flex: 1;
+  max-width: 300px;
+  
+  input {
+    width: 100%;
+    padding: 0.5rem 0.5rem 0.5rem 2rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  svg {
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+  }
+`;
+
+const FilterContainer = styled.div`
+  display: flex;
+  gap: 1rem;
+  
+  select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+  }
+`;
+
+const RoleTag = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+ background-color: ${props => 
+    props.role === 'admin' ? '#e3f2fd' : 
+    props.role === 'mentor' ? '#fff3e0' : 
+    '#f1f8e9'
+  };
+  color: ${props => 
+    props.role === 'admin' ? '#0d47a1' : 
+    props.role === 'mentor' ? '#e65100' : 
+    '#33691e'
+  };
+`;
+
+const Pagination = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 1.5rem;
+  gap: 0.5rem;
+  
+  button {
+    border: 1px solid #ddd;
+    background-color: white;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    
+    &:hover:not([disabled]) {
+      background-color: #f1f1f1;
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    &.active {
+      background-color: #2b4361;
+      color: white;
+      border-color: #2b4361;
+    }
+  }
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+`;
+
+// Modal components
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  
+  h3 {
+    margin: 0;
+    color: #2b4361;
+  }
+  
+  button {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: #6b7280;
+    
+    &:hover {
+      color: #ef4444;
+    }
+  }
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 1.25rem;
+  
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #374151;
+  }
+  
+  input, select {
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    
+    &:focus {
+      outline: none;
+      border-color: #2b4361;
+      box-shadow: 0 0 0 1px #2b4361;
+    }
+  }
+  
+  .error {
+    color: #ef4444;
+    font-size: 0.75rem;
+    margin-top: 0.3rem;
+  }
+`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+`;
+
+const AdminUserTable = () => {
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage] = useState(10);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const [formData, setFormData] = useState({
+    nombre: '',
+    email: '',
+    password: '',
+    role: 'user'
+  });
+  
+  const [formErrors, setFormErrors] = useState({});
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await userService.getAll();
+      setUsers(res.data || []);
+      setFilteredUsers(res.data || []);
+    } catch (error) {
+      console.error('Error cargando usuarios:', error);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    // Filtrar usuarios basado en búsqueda y filtro de rol
+    let filtered = users;
+    
+    if (search) {
+      filtered = filtered.filter(user => 
+        user.nombre.toLowerCase().includes(search.toLowerCase()) || 
+        user.email.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+    
+    if (roleFilter) {
+      filtered = filtered.filter(user => user.role === roleFilter);
+    }
+    
+    setFilteredUsers(filtered);
+    setCurrentPage(1); // Reset to first page on filter change
+  }, [search, roleFilter, users]);
+
+  // Paginación
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const handleEdit = (user) => {
+    setSelectedUser(user);
+    setFormData({
+      nombre: user.nombre,
+      email: user.email,
+      password: '', // No mostramos la contraseña actual por seguridad
+      role: user.role
+    });
+    setFormErrors({});
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (user) => {
+    setSelectedUser(user);
+    setIsDeleteModalOpen(true);
+  };
+  
+  const confirmDelete = async () => {
+    try {
+      await userService.deleteUser(selectedUser.id);
+      setUsers(users.filter(user => user.id !== selectedUser.id));
+      setIsDeleteModalOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error eliminando usuario:', error);
+    }
+  };
+
+  const handleAddNew = () => {
+    setSelectedUser(null);
+    setFormData({
+      nombre: '',
+      email: '',
+      password: '',
+      role: 'user'
+    });
+    setFormErrors({});
+    setIsModalOpen(true);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+    
+    // Clear error when field is edited
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: null
+      });
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.nombre.trim()) {
+      errors.nombre = 'El nombre es obligatorio';
+    }
+    
+    if (!formData.email.trim()) {
+      errors.email = 'El email es obligatorio';
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)) {
+      errors.email = 'Email inválido';
+    }
+    
+    // Solo validar contraseña si es un nuevo usuario o si se ha ingresado algo
+    if (!selectedUser && !formData.password) {
+      errors.password = 'La contraseña es obligatoria';
+    } else if (formData.password && formData.password.length < 6) {
+      errors.password = 'La contraseña debe tener al menos 6 caracteres';
+    }
+    
+    return errors;
+  };
+
+  const handleSubmit = async () => {
+    const errors = validateForm();
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    
+    try {
+      if (selectedUser) {
+        // Actualizar usuario existente
+        const updatedUser = {
+          id: selectedUser.id,
+          ...formData
+        };
+        await userService.updateUser(updatedUser);
+        
+        // Actualizar estado
+        setUsers(users.map(user => 
+          user.id === selectedUser.id ? { ...user, ...formData } : user
+        ));
+      } else {
+        // Crear nuevo usuario
+        const response = await userService.createUser(formData);
+        setUsers([...users, response.data.data]);
+      }
+      
+      // Cerrar modal
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error guardando usuario:', error);
+      
+      // Mostrar error de email duplicado si aplica
+      if (error.response && error.response.data && error.response.data.message === 'El email ya está registrado') {
+        setFormErrors({
+          ...formErrors,
+          email: 'El email ya está registrado'
+        });
+      }
+    }
+  };
+
+  return (
+    <Container>
+      <SearchContainer>
+        <SearchInput>
+          <FaSearch />
+          <input 
+            type="text"
+            placeholder="Buscar por nombre o email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </SearchInput>
+        
+        <FilterContainer>
+          <select 
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+<option value="">Todos los roles</option>
+<option value="admin">Administradores</option>
+<option value="mentor">Mentores</option>
+<option value="user">Usuarios</option>
+          </select>
+          
+          <Button primary onClick={handleAddNew}>
+            Nuevo Usuario
+          </Button>
+        </FilterContainer>
+      </SearchContainer>
+      
+      {loading ? (
+        <div>Cargando usuarios...</div>
+      ) : (
+        <>
+          {currentUsers.length === 0 ? (
+            <EmptyState>
+              <p>No se encontraron usuarios que coincidan con los criterios de búsqueda.</p>
+            </EmptyState>
+          ) : (
+            <Table>
+              <thead>
+                <tr>
+                  <Th>ID</Th>
+                  <Th>Nombre</Th>
+                  <Th>Email</Th>
+                  <Th>Rol</Th>
+                  <Th>Fecha de Creación</Th>
+                  <Th>Acciones</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentUsers.map(user => (
+                  <tr key={user.id}>
+                    <Td>{user.id}</Td>
+                    <Td>{user.nombre}</Td>
+                    <Td>{user.email}</Td>
+                    <Td>
+                      <RoleTag role={user.role}>
+
+{user.role === 'admin' ? (
+  <>
+    <FaUserShield />
+    Administrador
+  </>
+) : user.role === 'mentor' ? (
+  <>
+    <FaChalkboardTeacher />
+    Mentor
+  </>
+) : (
+  <>
+    <FaUser />
+    Usuario
+  </>
+)}
+                      </RoleTag>
+                    </Td>
+                    <Td>{new Date(user.created).toLocaleDateString()}</Td>
+                    <Td>
+                      <Button onClick={() => handleEdit(user)}>
+                        <FaEdit />
+                      </Button>
+                      <Button danger onClick={() => handleDelete(user)}>
+                        <FaTrash />
+                      </Button>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+          
+          {totalPages > 1 && (
+            <Pagination>
+              <span>
+                Mostrando {indexOfFirstUser + 1}-{Math.min(indexOfLastUser, filteredUsers.length)} de {filteredUsers.length}
+              </span>
+              
+              <button 
+                onClick={() => paginate(1)} 
+                disabled={currentPage === 1}
+              >
+                &laquo;
+              </button>
+              
+              <button 
+                onClick={() => paginate(currentPage - 1)} 
+                disabled={currentPage === 1}
+              >
+                &lsaquo;
+              </button>
+              
+              {Array.from({ length: Math.min(5, totalPages) }).map((_, index) => {
+                // Mostrar 5 páginas centradas en la página actual
+                let pageToShow;
+                if (totalPages <= 5) {
+                  pageToShow = index + 1;
+                } else if (currentPage <= 3) {
+                  pageToShow = index + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageToShow = totalPages - 4 + index;
+                } else {
+                  pageToShow = currentPage - 2 + index;
+                }
+                
+                return (
+                  <button
+                    key={index}
+                    onClick={() => paginate(pageToShow)}
+                    className={currentPage === pageToShow ? 'active' : ''}
+                  >
+                    {pageToShow}
+                  </button>
+                );
+              })}
+              
+              <button 
+                onClick={() => paginate(currentPage + 1)} 
+                disabled={currentPage === totalPages}
+              >
+                &rsaquo;
+              </button>
+              
+              <button 
+                onClick={() => paginate(totalPages)} 
+                disabled={currentPage === totalPages}
+              >
+                &raquo;
+              </button>
+            </Pagination>
+          )}
+        </>
+      )}
+      
+      {isModalOpen && (
+        <ModalOverlay>
+          <ModalContent>
+            <ModalHeader>
+              <h3>{selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h3>
+              <button onClick={() => setIsModalOpen(false)}>&times;</button>
+            </ModalHeader>
+            
+            <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+              <FormGroup>
+                <label htmlFor="nombre">Nombre</label>
+                <input
+                  id="nombre"
+                  name="nombre"
+                  type="text"
+                  value={formData.nombre}
+                  onChange={handleInputChange}
+                />
+                {formErrors.nombre && <div className="error">{formErrors.nombre}</div>}
+              </FormGroup>
+              
+              <FormGroup>
+                <label htmlFor="email">Email</label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                />
+                {formErrors.email && <div className="error">{formErrors.email}</div>}
+              </FormGroup>
+              
+              <FormGroup>
+                <label htmlFor="password">
+                  Contraseña {selectedUser && '(Dejar en blanco para mantener la actual)'}
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                />
+                {formErrors.password && <div className="error">{formErrors.password}</div>}
+              </FormGroup>
+              
+<FormGroup>
+  <label htmlFor="role">Rol</label>
+  <select
+    id="role"
+    name="role"
+    value={formData.role}
+    onChange={handleInputChange}
+    style={{ 
+      width: '100%', 
+      padding: '0.5rem',
+      backgroundColor: 'white',
+      border: '1px solid #ccc',
+      borderRadius: '4px'
+    }}
+  >
+    <option value="admin">👨‍💼 Administrador</option>
+    <option value="mentor">👨‍🏫 Mentor</option>
+    <option value="user">👤 Usuario</option>
+  </select>
+</FormGroup>
+              
+              <ModalFooter>
+                <Button onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                <Button primary type="submit">{selectedUser ? 'Actualizar' : 'Crear'}</Button>
+              </ModalFooter>
+            </form>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+      
+      {isDeleteModalOpen && (
+        <ModalOverlay>
+          <ModalContent>
+            <ModalHeader>
+              <h3>Confirmar Eliminación</h3>
+              <button onClick={() => setIsDeleteModalOpen(false)}>&times;</button>
+            </ModalHeader>
+            
+            <p>¿Estás seguro de eliminar al usuario <strong>{selectedUser?.nombre}</strong>?</p>
+            <p>Esta acción no se puede deshacer y eliminará todos sus datos y progreso.</p>
+            
+            <ModalFooter>
+              <Button onClick={() => setIsDeleteModalOpen(false)}>Cancelar</Button>
+              <Button danger onClick={confirmDelete}>Eliminar</Button>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+    </Container>
+  );
+};
+
+export default AdminUserTable;

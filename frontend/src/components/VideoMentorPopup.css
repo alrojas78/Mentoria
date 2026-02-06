@@ -1,0 +1,602 @@
+/* --- Variables de Diseño --- */
+:root {
+    --bg-overlay: rgba(18, 24, 38, 0.8);
+    --bg-main: #1E293B;
+    --bg-panel: #131824;
+    --primary-color: #14B8A6; /* Teal */
+    --primary-color-light: #A7F3D0;
+    --text-primary: #F1F5F9;
+    --text-secondary: #94A3B8;
+    --color-user: #0E7490;
+    --color-ai: #334155;
+    --color-playing: #22C55E; /* Green */
+    --color-paused: #F59E0B; /* Amber */
+    --color-listening: #3B82F6; /* Blue */
+    --color-speaking: #8B5CF6; /* Violet */
+}
+
+/* --- Estructura Principal del Popup --- */
+.video-mentor-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: var(--bg-overlay);
+    backdrop-filter: blur(12px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeInOverlay 0.5s ease-out forwards;
+}
+
+.video-mentor-popup {
+    width: 95%;
+    max-width: 1400px;
+    height: 90vh;
+    max-height: 800px;
+    background-color: var(--bg-main);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Layout 2/3 para video, 1/3 para panel */
+    gap: 1.5rem;
+    padding: 1.5rem;
+    overflow: hidden;
+    transform: scale(0.95);
+    animation: scaleInPopup 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --- Panel Izquierdo: Video --- */
+.video-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Previene que el flex item se desborde */
+}
+
+.video-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.video-module {
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.video-title {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    margin: 0.25rem 0 0 0;
+}
+
+.close-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-secondary);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.close-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+    transform: rotate(90deg);
+}
+
+.video-container {
+    flex-grow: 1;
+    position: relative;
+    background-color: #000;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.video-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    background-color: #000;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background-color: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    margin-top: 1rem;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color-light), var(--primary-color));
+    border-radius: 4px;
+    transition: width 0.3s linear;
+}
+
+/* --- Panel Derecho: Interactivo --- */
+.interactive-panel {
+    background-color: var(--bg-panel);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-title {
+    color: var(--text-primary);
+    margin: 0 0 1.5rem 0;
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+/* Grid de Estado */
+.status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.status-item {
+    background-color: var(--bg-main);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.status-item.playing { border-color: var(--color-playing); }
+.status-item.paused { border-color: var(--color-paused); }
+.status-item.listening { border-color: var(--color-listening); }
+.status-item.speaking { border-color: var(--color-speaking); }
+
+.status-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: var(--color-ai);
+    color: var(--text-primary);
+}
+
+.status-item.playing .status-icon { background-color: var(--color-playing); }
+.status-item.paused .status-icon { background-color: var(--color-paused); }
+.status-item.listening .status-icon { background-color: var(--color-listening); }
+.status-item.speaking .status-icon { background-color: var(--color-speaking); }
+
+.status-icon svg { width: 24px; height: 24px; }
+
+.status-text span {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+.status-text strong {
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+/* Contenedor del Chat */
+.chat-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.chat-history {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 10px; /* Espacio para la barra de scroll */
+}
+
+.chat-placeholder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-secondary);
+}
+.chat-placeholder svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.chat-message {
+    display: flex;
+    margin-bottom: 1rem;
+}
+.chat-message.user { justify-content: flex-end; }
+.chat-message.ai { justify-content: flex-start; }
+
+.chat-bubble {
+    max-width: 80%;
+    padding: 0.8rem 1rem;
+    border-radius: 18px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+.chat-message.user .chat-bubble {
+    background-color: var(--color-user);
+    border-bottom-right-radius: 4px;
+}
+.chat-message.ai .chat-bubble {
+    background-color: var(--color-ai);
+    border-bottom-left-radius: 4px;
+}
+
+/* Formulario de Input */
+.chat-input-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 1rem;
+}
+
+.chat-input-form input {
+    flex-grow: 1;
+    background-color: var(--bg-main);
+    border: 1px solid var(--color-ai);
+    border-radius: 8px;
+    padding: 0.8rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+.chat-input-form input:focus {
+    border-color: var(--primary-color);
+}
+.chat-input-form input:disabled {
+    opacity: 0.5;
+}
+
+.chat-input-form button {
+    background-color: var(--primary-color);
+    border: none;
+    color: white;
+    padding: 0 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+.chat-input-form button:hover:not(:disabled) {
+    background-color: #0F766E;
+}
+.chat-input-form button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Animaciones y Responsividad --- */
+@keyframes fadeInOverlay { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleInPopup { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+/* Estilos para scrollbar */
+.chat-history::-webkit-scrollbar { width: 6px; }
+.chat-history::-webkit-scrollbar-track { background: transparent; }
+.chat-history::-webkit-scrollbar-thumb { background: var(--color-ai); border-radius: 3px; }
+
+/* Media Query para tablets y móviles */
+@media (max-width: 1024px) {
+
+    /* ... (aquí están tus otras reglas como .video-mentor-popup) ... */
+
+
+    /* --- PEGA ESTE BLOQUE NUEVO AQUÍ DENTRO --- */
+    .video-container {
+      /* Esta es la corrección:
+        Forzamos al contenedor a tener un aspect-ratio de 16:9.
+        Esto le da una altura explícita (basada en su ancho), 
+        lo que permite que la fila "auto" del grid se expanda 
+        y el video sea visible.
+      */
+      aspect-ratio: 16 / 9;
+      flex-grow: 0; /* Desactivamos el flex-grow que ya no es necesario */
+    }
+    /* --- FIN DEL BLOQUE NUEVO --- */
+    
+.video-mentor-popup {
+        grid-template-columns: 1fr; /* OK */
+        
+        /* --- MODIFICACIÓN CLAVE --- */
+        /* Cambiamos la altura fija por filas automáticas */
+        /* El video tomará el espacio que necesite (auto) */
+        /* El panel interactivo tomará el resto del espacio (1fr) */
+        grid-template-rows: auto 1fr;
+        max-height: 95vh; /* Mantenemos la altura máxima */
+        /* --- FIN MODIFICACIÓN --- */
+        
+        padding: 1rem;
+        gap: 1rem;
+        /* height: 95vh; <-- BORRA ESTA LÍNEA (redundante) */
+    }
+
+.interactive-panel {
+        /* max-height: 40%; <-- BORRA ESTA LÍNEA (es la causa del problema) */
+        
+        /* --- AÑADE ESTO --- */
+        /* Esto es un fix de CSS Grid/Flex para que el panel no se desborde */
+        /* y permita que el chat interno haga scroll correctamente */
+        min-height: 0;
+        /* --- FIN AÑADIDO --- */
+    }
+}
+
+
+@media (max-width: 768px) {
+    .video-title { font-size: 1.2rem; }
+
+    /* Apila los indicadores (como estaba) */
+    .status-grid { grid-template-columns: 1fr; } 
+
+    /* --- AÑADE ESTO PARA ACHICAR LOS INDICADORES --- */
+    .status-item {
+        /* Los ponemos en fila (horizontal) en lugar de columna */
+        flex-direction: row; 
+        padding: 0.8rem 1rem; /* Menos padding */
+        gap: 1rem;
+    }
+    .status-icon {
+        /* Icono más pequeño */
+        width: 36px;
+        height: 36px;
+    }
+    .status-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+    .status-text {
+        text-align: left; /* Alineamos el texto */
+    }
+    .status-text strong {
+        font-size: 0.95rem; /* Texto más pequeño */
+    }
+    .status-text span {
+        font-size: 0.75rem; /* Texto más pequeño */
+    }
+    /* --- FIN AÑADIDO --- */
+}
+
+/* Añade esto al final de tu archivo CSS */
+.seek-warning {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(239, 68, 68, 0.9); /* Rojo de advertencia */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    z-index: 20;
+    animation: fade-in-out 3s ease-in-out;
+}
+
+@keyframes fade-in-out {
+    0%, 100% { opacity: 0; transform: translate(-50%, 10px); }
+    10%, 90% { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* --- CSS para la cortina que bloquea la barra de progreso --- */
+
+
+/* --- Estilos para el nuevo botón de Play/Pausa --- */
+.video-control-button {
+    cursor: pointer;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    border: 1px solid transparent;
+    width: 100%; /* Rellena la celda del grid */
+    font-family: inherit; /* Hereda la fuente */
+}
+
+.video-control-button:hover:not(:disabled) {
+    background-color: #334155; /* Fondo un poco más claro */
+    border-color: var(--primary-color); /* Borde de color primario */
+}
+
+.video-control-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* --- ✅ AÑADIR: Estilos para la Nueva Barra de Controles Superpuesta --- */
+
+.video-custom-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* 12px */
+    padding: 0.75rem 1rem; /* 12px 16px */
+    
+    /* Un gradiente sutil para que los iconos sean legibles sobre el video */
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+    
+opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+
+
+.control-button-overlay {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.control-button-overlay:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.control-button-overlay svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Botón de Play/Pausa más grande y destacado */
+.control-button-overlay.play-pause {
+    width: 44px;
+    height: 44px;
+}
+.control-button-overlay.play-pause svg {
+    width: 28px;
+    height: 28px;
+}
+
+
+/* --- ✅ MODIFICAR: Ajuste del Status Grid --- */
+
+.status-grid {
+    display: grid;
+    /* Ahora solo tiene una columna */
+    grid-template-columns: 1fr; 
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Centramos el único item que queda */
+.status-grid .status-item {
+    /* Opcional: si quieres que ocupe el centro y no todo el ancho */
+    /* max-width: 250px; 
+       justify-self: center; */
+}/* En VideoMentorPopup.css */
+
+.ios-start-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6); /* Fondo oscuro semitransparente */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20; /* Por encima de los controles normales */
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+}
+
+.ios-start-button {
+    background: #2563eb; /* Tu color principal */
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+    transition: transform 0.2s;
+}
+
+.ios-start-button svg {
+    width: 30px;
+    height: 30px;
+}
+
+.ios-start-button:hover {
+    transform: scale(1.05);
+    background: #1d4ed8;
+}
+
+
+/* --- FIX RESPONSIVE IPAD/TABLET --- */
+
+/* Estilos base (Móvil / iPhone) */
+.mobile-responsive-container {
+    width: 95%;
+    max-width: 420px; /* Mantiene el diseño original en celulares */
+    height: 90vh;
+    max-height: 90vh;
+    transition: max-width 0.3s ease;
+}
+
+/* Título pequeño en móvil */
+.video-title-iphone {
+    font-size: 0.95rem;
+}
+
+/* --- MEDIA QUERY PARA TABLETS (iPad 9 y superiores) --- */
+@media (min-width: 768px) {
+    .mobile-responsive-container {
+        max-width: 720px; /* Ancho mucho mayor para tablets */
+        height: 85vh;     /* Un poco menos de altura para dar aire */
+    }
+
+    /* Ajustar el iframe para que no sea tan alto en tablet */
+    .video-container {
+        aspect-ratio: 16 / 9; /* Forzamos formato panorámico */
+        flex-grow: 0;
+    }
+
+    /* Agrandar el título en tablet */
+    .video-title-iphone {
+        font-size: 1.2rem !important;
+    }
+
+    /* Hacer el panel de chat más grande en tablet */
+    .interactive-panel {
+        padding: 20px !important;
+    }
+}
+
+/* --- MEDIA QUERY PARA TABLETS GRANDES (iPad Pro) --- */
+@media (min-width: 1024px) {
+    .mobile-responsive-container {
+        max-width: 900px;
+    }
+}
