@@ -6,9 +6,6 @@ import styled, { keyframes } from 'styled-components';
 import imgdoctora from '../assets/img/doctora_2.png';
 import fondo from '../assets/img/banner_ensayo_1.jpg';
 import fondo_seed_burbujas from '../assets/img/fondo_seed_burbujas.png';
-import logo_vozama from '../assets/img/logo_vozama.svg';
-
-
 import consulta_inteligente from '../assets/img/consulta_inteligente.png';
 import modo_mentor from '../assets/img/modo_mentor.png';
 import evaluaciones_certificadas from '../assets/img/evaluaciones_certificadas.png';
@@ -88,13 +85,6 @@ const HeroImgDoctora = styled.img`
     width: 100%;
     height: auto;
     margin-bottom: 17px;
-`;
-const LogoVozama = styled.img`
-    width: 240px;
-    height: auto;
-    display: block;
-    margin: 0 auto;
-    margin-bottom: 20px;
 `;
 
 const ButtonContainer = styled.div`
@@ -466,7 +456,6 @@ const HomePage = () => {
               <HeroImgDoctora src={imgdoctora} alt="Doctora" />
           </LeftHeroImg>
           <HeroContent>
-            <LogoVozama src={logo_vozama} alt="Logo Vozama" />
             <MainTitle>MentorIA</MainTitle>
             <Subtitle>
               Plataforma profesional de educación médica con inteligencia artificial conversacional. Aprende, practica y evalúa tus conocimientos médicos con precisión y confianza.

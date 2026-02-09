@@ -1544,7 +1544,15 @@ const handleModeChange = useCallback((newMode) => {
       {showWelcomeModal && !isInitializing && (
         <div className="welcome-modal-overlay">
             <div className="welcome-card">
-                <h2>Bienvenido</h2>
+                <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
+                    <defs><linearGradient id="iphBrain" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#14b6cb"/><stop offset="100%" stopColor="#22d3ee"/></linearGradient></defs>
+                    <path d="M50 20 C35 20, 18 32, 18 50 C18 68, 35 80, 50 80" stroke="url(#iphBrain)" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+                    <path d="M50 20 C65 20, 82 32, 82 50 C82 68, 65 80, 50 80" stroke="url(#iphBrain)" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+                    <circle cx="50" cy="50" r="5" fill="#14b6cb"/><circle cx="32" cy="38" r="3" fill="#22d3ee" opacity="0.8"/><circle cx="68" cy="38" r="3" fill="#14b6cb" opacity="0.8"/>
+                  </svg>
+                  Asistente MentorIA
+                </h2>
                 <p>Elige tu modo de aprendizaje:</p>
                 
                 <button onClick={() => startFirstInteraction('consulta')} className="mode-btn consulta">

@@ -2252,7 +2252,16 @@ Modos ▾
 {showWelcomeModal && !isInitializing && (
   <div className="initial-modal">
     <div className="modal-content">
-      <h2>🤖 Asistente MentorIA</h2>
+      <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+        <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+          <defs><linearGradient id="modalBrain" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#14b6cb"/><stop offset="100%" stopColor="#22d3ee"/></linearGradient></defs>
+          <path d="M50 20 C35 20, 18 32, 18 50 C18 68, 35 80, 50 80" stroke="url(#modalBrain)" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+          <path d="M50 20 C65 20, 82 32, 82 50 C82 68, 65 80, 50 80" stroke="url(#modalBrain)" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+          <circle cx="50" cy="50" r="5" fill="#14b6cb"/><circle cx="32" cy="38" r="3" fill="#22d3ee" opacity="0.8"/><circle cx="68" cy="38" r="3" fill="#14b6cb" opacity="0.8"/>
+          <line x1="32" y1="38" x2="50" y2="50" stroke="#14b6cb" strokeWidth="1.2" opacity="0.5"/><line x1="68" y1="38" x2="50" y2="50" stroke="#22d3ee" strokeWidth="1.2" opacity="0.5"/>
+        </svg>
+        Asistente MentorIA
+      </h2>
       <p>Selecciona cómo deseas comenzar tu sesión de aprendizaje:</p>
       
       <div className="mode-selection-container">

@@ -1,170 +1,145 @@
-// src/components/layout/Footer.js
 import React from 'react';
-import { Link } from 'react-router-dom';
-import styled from 'styled-components';
-import logo from '../../assets/img/logo_footer.png'; // ajusta el nombre del archivo si es distinto
+import styled, { keyframes } from 'styled-components';
 
+const subtleGlow = keyframes`
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+`;
 
 const FooterContainer = styled.footer`
-  background: rgb(255, 255, 255);
-  padding: 57px 15px 33px 15px;
+  background: linear-gradient(180deg, #0a2a47 0%, #0f355b 100%);
+  padding: 3rem 15px 1.5rem;
   margin-top: auto;
-  color: rgb(15, 53, 91);
+  color: #94a3b8;
 `;
 
 const FooterContent = styled.div`
-    max-width: 1200px;
-    margin: auto;
+  max-width: 1200px;
+  margin: 0 auto;
 `;
 
-const FooterSection = styled.div`
-    display: flex;
-    align-items: end;
-`;
+const FooterMain = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(20, 182, 203, 0.15);
 
-const FooterLink = styled(Link)`
-  color: #706f6f;
-  text-decoration: none;
-  display: block;
-  margin-bottom: 0.5rem;
-  transition: color 0.3s ease;
-  font-size: 0.9rem;
-
-  &:hover {
-    color: #dc2626;
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 1.5rem;
+    text-align: center;
   }
 `;
 
-const ExternalLink = styled.a`
-  color: #706f6f;
-  text-decoration: none;
-  display: block;
-  margin-bottom: 0.5rem;
-  transition: color 0.3s ease;
-  font-size: 0.9rem;
-
-  &:hover {
-    color: #dc2626;
-  }
-`;
-
-const FooterText = styled.p`
-    color: rgb(15, 53, 91);
-    font-size: 28px;
-    line-height: 1.6;
-    margin: 0px;
-    font-weight: bold;
-    font-family: "Myriad Pro", sans-serif;
-    padding-left: 17px;
-    @media (max-width: 991px) {
-      padding-left: 0px;
-      text-align: center;
-      line-height: 1;
-    }
-    @media (max-width: 767px) {
-      font-size: 18px;
-    }
-
-    
-
-`;
-
-const Logo = styled.div`
-    display: flex;
-    align-items: center;
-    margin-bottom: 0px;
-    @media (max-width: 767px) {
-      transform: scale(0.6);
-    }
-
-`;
-
-const LogoIcon = styled.div`
-    width: 47px;
-    height: 47px;
-    border-radius: 6px;
-    background: linear-gradient(135deg, rgb(220, 38, 38) 0%, rgb(43, 67, 97) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-  
-  &::before {
-    content: '🤖';
-    filter: grayscale(100%) brightness(0) invert(1);
-  }
+const LogoSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 `;
 
 const LogoText = styled.span`
-  font-size: 52px;
+  font-size: 1.8rem;
   font-weight: 700;
-  color: #0f355b;
-  padding-left: 9px;
+  color: #ffffff;
+  font-family: 'Myriad Pro', sans-serif;
+  letter-spacing: -0.5px;
+`;
+
+const ContactSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+
+  @media (max-width: 768px) {
+    align-items: center;
+  }
+`;
+
+const ContactLabel = styled.span`
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #64748b;
+`;
+
+const ContactEmail = styled.a`
+  color: #14b6cb;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: #22d3ee;
+  }
 `;
 
 const FooterBottom = styled.div`
-    border-top: 0px solid rgb(55, 65, 81);
-    padding-top: 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 17px;
-    color: rgb(112, 111, 111);
-    font-family: "Myriad Pro", sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1.5rem;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-family: 'Myriad Pro', sans-serif;
 
   @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 0.5rem;
     text-align: center;
-    justify-content: center;
-    font-size: 13px;
-    padding-bottom: 55px;
+    padding-bottom: 60px;
   }
 `;
 
-const FooterEnlaces = styled(Link)`
-  color: #0f355b;
-  text-decoration: none;
-  &:hover {
-    color: #dc2626;
-  }
+const VersionBadge = styled.span`
+  background: rgba(20, 182, 203, 0.12);
+  color: #14b6cb;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 `;
 
-const FooteContainer = styled.div`
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    flex-flow: wrap;
-`;
-const LeftFooter = styled.div`
-    display: flex;
-    align-items: baseline;
-    flex-flow: wrap;
-    @media (max-width: 991px) {
-      margin-bottom: 14px;
-      width: 100%;
-      justify-content: center;
+const FooterLinks = styled.div`
+  display: flex;
+  gap: 1.5rem;
+
+  a {
+    color: #64748b;
+    text-decoration: none;
+    transition: color 0.3s ease;
+
+    &:hover {
+      color: #14b6cb;
     }
-`;
-const RightFooter = styled.div`
-
-    @media (max-width: 991px) {
-      display: flex;
-      width: 100%;
-      justify-content: center;
-    }
-`;
-
-const RightFooterImg = styled.img`
-  width: 126px;
-
-  @media (max-width: 767px) {
-    width: 93px;
   }
-
-
 `;
 
-
-
+// Mini versión del icono neural para el footer
+const FooterNeuralIcon = () => (
+  <svg width="34" height="34" viewBox="0 0 100 100" fill="none">
+    <defs>
+      <linearGradient id="footerBrainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#14b6cb" />
+        <stop offset="100%" stopColor="#22d3ee" />
+      </linearGradient>
+    </defs>
+    <path d="M50 20 C35 20, 18 32, 18 50 C18 68, 35 80, 50 80"
+          stroke="url(#footerBrainGrad)" strokeWidth="3" fill="none" strokeLinecap="round"/>
+    <path d="M50 20 C65 20, 82 32, 82 50 C82 68, 65 80, 50 80"
+          stroke="url(#footerBrainGrad)" strokeWidth="3" fill="none" strokeLinecap="round"/>
+    <circle cx="50" cy="50" r="5" fill="#14b6cb"/>
+    <circle cx="32" cy="38" r="3" fill="#14b6cb" opacity="0.7"/>
+    <circle cx="68" cy="38" r="3" fill="#22d3ee" opacity="0.7"/>
+    <circle cx="28" cy="55" r="2.5" fill="#22d3ee" opacity="0.5"/>
+    <circle cx="72" cy="55" r="2.5" fill="#14b6cb" opacity="0.5"/>
+    <line x1="32" y1="38" x2="50" y2="50" stroke="#14b6cb" strokeWidth="1" opacity="0.4"/>
+    <line x1="68" y1="38" x2="50" y2="50" stroke="#22d3ee" strokeWidth="1" opacity="0.4"/>
+  </svg>
+);
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -172,42 +147,25 @@ const Footer = () => {
   return (
     <FooterContainer>
       <FooterContent>
-        {/* Sección Principal */}
-        <FooterSection>
-          <FooteContainer>
-            <LeftFooter>
-              <Logo>
-                <LogoIcon />
-                <LogoText>MentorIA</LogoText>
-              </Logo>
-              <FooterText>
-                <strong>Contacto:</strong> <FooterEnlaces to="mailto:soporte@ateneo.co">soporte@ateneo.co</FooterEnlaces>
-              </FooterText>
-            </LeftFooter>
-            <RightFooter>
-              <RightFooterImg src={logo} alt="Logo" />
-            </RightFooter>
-          </FooteContainer>
-        </FooterSection>
+        <FooterMain>
+          <LogoSection>
+            <FooterNeuralIcon />
+            <LogoText>MentorIA</LogoText>
+          </LogoSection>
+          <ContactSection>
+            <ContactLabel>Contacto</ContactLabel>
+            <ContactEmail href="mailto:soporte@ateneo.co">soporte@ateneo.co</ContactEmail>
+          </ContactSection>
+        </FooterMain>
         <FooterBottom>
           <div>
-            © {currentYear} Ateneo.co. Todos los derechos reservados. | ver 3.9 Beta
-            <ExternalLink 
-              href="#" 
-              onClick={(e) => e.preventDefault()}
-              style={{ display: 'inline', marginLeft: '0.5rem' }}
-            >
-              Política de Privacidad
-            </ExternalLink>
-            {' | '}
-            <ExternalLink 
-              href="#" 
-              onClick={(e) => e.preventDefault()}
-              style={{ display: 'inline', marginLeft: '0.5rem' }}
-            >
-              Términos de Servicio
-            </ExternalLink>
+            &copy; {currentYear} Ateneo.co. Todos los derechos reservados.
           </div>
+          <FooterLinks>
+            <a href="#" onClick={e => e.preventDefault()}>Privacidad</a>
+            <a href="#" onClick={e => e.preventDefault()}>Términos</a>
+            <VersionBadge>v4.0</VersionBadge>
+          </FooterLinks>
         </FooterBottom>
       </FooterContent>
     </FooterContainer>
