@@ -53,6 +53,22 @@ const pulse = keyframes`
   }
 `;
 
+const orbitSpin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const coreGlow = keyframes`
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(20, 182, 203, 0.4));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(20, 182, 203, 0.9));
+    transform: scale(1.06);
+  }
+`;
+
 {/* CSS Banner principal home */}
 const HeroContainer = styled.div`
     width: 100%;
@@ -142,7 +158,95 @@ const MainTitle = styled.h1`
     font-family: 'Myriad Pro';
     margin-top: 0px;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 `;
+
+const HeroIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ${coreGlow} 3s ease-in-out infinite;
+  flex-shrink: 0;
+
+  .orbit-ring {
+    animation: ${orbitSpin} 8s linear infinite;
+    transform-origin: 50% 50%;
+  }
+
+  @media (max-width: 768px) {
+    width: 48px;
+    height: 48px;
+  }
+`;
+
+const HeroChipIcon = () => (
+  <HeroIconWrapper>
+    <svg width="64" height="64" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="heroChipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#22d3ee" />
+        </linearGradient>
+        <radialGradient id="heroCoreGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#22d3ee" />
+          <stop offset="100%" stopColor="#14b6cb" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Chip body */}
+      <rect x="22" y="22" width="56" height="56" rx="12" fill="url(#heroChipGrad)" opacity="0.12"/>
+      <rect x="22" y="22" width="56" height="56" rx="12" stroke="url(#heroChipGrad)" strokeWidth="2.5" fill="none"/>
+
+      {/* Pins - top */}
+      <line x1="38" y1="12" x2="38" y2="22" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="50" y1="12" x2="50" y2="22" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="62" y1="12" x2="62" y2="22" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* bottom */}
+      <line x1="38" y1="78" x2="38" y2="88" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="50" y1="78" x2="50" y2="88" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="62" y1="78" x2="62" y2="88" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* left */}
+      <line x1="12" y1="38" x2="22" y2="38" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="12" y1="50" x2="22" y2="50" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="12" y1="62" x2="22" y2="62" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* right */}
+      <line x1="78" y1="38" x2="88" y2="38" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="78" y1="50" x2="88" y2="50" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="78" y1="62" x2="88" y2="62" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round"/>
+
+      {/* Orbit ring */}
+      <g className="orbit-ring">
+        <circle cx="50" cy="50" r="16" fill="none" stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="6 8" opacity="0.5"/>
+        <circle cx="50" cy="34" r="3.5" fill="#22d3ee"/>
+      </g>
+
+      {/* Core glow */}
+      <circle cx="50" cy="50" r="8" fill="url(#heroCoreGlow)" opacity="0.5">
+        <animate attributeName="r" values="6;10;6" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="50" cy="50" r="5" fill="#22d3ee"/>
+      <circle cx="50" cy="50" r="2.5" fill="#ffffff"/>
+
+      {/* Data pulses */}
+      <circle r="2" fill="#22d3ee">
+        <animate attributeName="cx" values="50;50" dur="1.5s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="22;12" dur="1.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="1;0" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="2" fill="#22d3ee">
+        <animate attributeName="cx" values="78;88" dur="1.8s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="50;50" dur="1.8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="1;0" dur="1.8s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+  </HeroIconWrapper>
+);
 
 {/* End CSS Banner principal home */}
 
@@ -456,7 +560,7 @@ const HomePage = () => {
               <HeroImgDoctora src={imgdoctora} alt="Doctora" />
           </LeftHeroImg>
           <HeroContent>
-            <MainTitle>MentorIA</MainTitle>
+            <MainTitle><HeroChipIcon />MentorIA</MainTitle>
             <Subtitle>
               Plataforma profesional de educación médica con inteligencia artificial conversacional. Aprende, practica y evalúa tus conocimientos médicos con precisión y confianza.
             </Subtitle>
