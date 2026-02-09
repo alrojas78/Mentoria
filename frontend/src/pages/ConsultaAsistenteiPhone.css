@@ -107,7 +107,7 @@
 
 /* MODAL */
 .welcome-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.welcome-card { background: var(--bg-surface); width: 100%; max-width: 350px; padding: 25px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+.welcome-card { background: var(--bg-surface); width: 100%; max-width: 350px; padding: 25px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); max-height: calc(100dvh - 40px); overflow-y: auto; }
 .welcome-card h2 { color: var(--text-main); margin-top: 0; }
 .welcome-card p { color: var(--text-sec); }
 .mode-btn { display: block; width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 12px; border: none; color: white; font-size: 1rem; font-weight: 600; text-align: left; }

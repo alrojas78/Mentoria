@@ -5,7 +5,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { VoiceProvider } from './contexts/VoiceContext';
 import CourseProgressView from './pages/CourseProgressView';
 import { useAuth } from './contexts/AuthContext';
-import VoiceAdminPage from './pages/admin/VoiceAdminPage';
 import VoiceTestiPhone from './pages/VoiceTestiPhone';
 
 import { ToastContainer } from 'react-toastify';
@@ -37,7 +36,6 @@ import AdminDashboard from './pages/AdminDashboard';
 
 import DocumentosPage from './pages/DocumentosPage';
 import ConsultaAsistentePage from './pages/ConsultaAsistentePage';
-import AdminDocumentosPage from './pages/admin/AdminDocumentosPage';
 import DocumentAnalyticsPage from './pages/DocumentAnalyticsPage';
 import ConsultaAsistenteiPhone from './pages/ConsultaAsistenteiPhone';
 import deviceDetector from './utils/deviceDetector';
@@ -62,22 +60,22 @@ const ProtectedRoute = ({ children }) => {
 const AppContent = () => {
   const location = useLocation();
   
-  // Rutas donde NO queremos mostrar el Footer
-  const hideFooterRoutes = ['/consulta/'];
-  const shouldHideFooter = hideFooterRoutes.some(route => 
+  // Rutas donde NO queremos mostrar Header ni Footer
+  const hideLayoutRoutes = ['/consulta/', '/consultaiphone/'];
+  const shouldHideLayout = hideLayoutRoutes.some(route =>
     location.pathname.includes(route)
   );
 
   return (
     <div className="App">
-      <Header />
+      {!shouldHideLayout && <Header />}
       
       <main className="main-content">
         <Routes>
-          {/* Rutas públicas */}
+          {/* Rutas públicas - login/register ahora son modal overlay sobre la landing */}
           <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<HomePage autoAuth="login" />} />
+          <Route path="/register" element={<HomePage autoAuth="register" />} />
           <Route path="/voice-test" element={<VoiceTestPage />} />
           
           {/* Rutas protegidas */}
@@ -189,23 +187,10 @@ const AppContent = () => {
             } 
           />
 
-          <Route 
-            path="/admin/documentos" 
-            element={
-              <ProtectedRoute>
-                <AdminDocumentosPage />
-              </ProtectedRoute>
-            } 
-          />
+          {/* Redirigir rutas legacy de admin a panel unificado */}
+          <Route path="/admin/documentos" element={<Navigate to="/admin-panel" replace />} />
+          <Route path="/admin/voice-service" element={<Navigate to="/admin-panel" replace />} />
           <Route path="/analytics/:documentId" element={<DocumentAnalyticsPage />} />
-          <Route 
-            path="/admin/voice-service" 
-            element={
-              <ProtectedRoute>
-                <VoiceAdminPage />
-              </ProtectedRoute>
-            } 
-          />
 <Route path="/test-voice-iphone" element={<VoiceTestiPhone />} />
         </Routes>
         <ToastContainer position="top-right" autoClose={3000} />
@@ -218,7 +203,7 @@ const AppContent = () => {
       <SessionExpiredNotification />
       
       {/* Footer condicional - NO se muestra en rutas de consulta */}
-      {!shouldHideFooter && <Footer />}
+      {!shouldHideLayout && <Footer />}
     </div>
   );
 };

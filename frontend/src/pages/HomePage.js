@@ -1,7 +1,7 @@
 // src/pages/HomePage.js
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import styled, { keyframes } from 'styled-components';
+import AuthModal from '../components/AuthModal';
 
 import imgdoctora from '../assets/img/doctora_2.png';
 import fondo from '../assets/img/banner_ensayo_1.jpg';
@@ -110,7 +110,7 @@ const ButtonContainer = styled.div`
   flex-wrap: wrap;
   margin-top: 0px;
 `;
-const PrimaryButton = styled(Link)`
+const PrimaryButton = styled.button`
   background: #0f355b;
   color: white;
   padding: 8px 31px;
@@ -123,6 +123,8 @@ const PrimaryButton = styled(Link)`
   animation: ${pulse} 3s infinite;
   font-family: 'Myriad Pro', sans-serif;
   font-weight: bold;
+  border: none;
+  cursor: pointer;
 
   &:hover {
     background: #b91c1c;
@@ -550,9 +552,17 @@ const IconoCart14 = styled.img`
   margin-bottom: 6px;
 `;
 
-const HomePage = () => {
+const HomePage = ({ autoAuth }) => {
+  const [authOpen, setAuthOpen] = useState(!!autoAuth);
+  const [authTab, setAuthTab] = useState(autoAuth || 'login');
+
+  const openLogin = () => { setAuthTab('login'); setAuthOpen(true); };
+  const openRegister = () => { setAuthTab('register'); setAuthOpen(true); };
+
   return (
     <>
+    <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} initialTab={authTab} />
+
     {/* Banner principal home */}
       <HeroContainer>
         <HeroPriContainer>
@@ -565,10 +575,10 @@ const HomePage = () => {
               Plataforma profesional de educación médica con inteligencia artificial conversacional. Aprende, practica y evalúa tus conocimientos médicos con precisión y confianza.
             </Subtitle>
             <ButtonContainer>
-              <PrimaryButton to="/login">
+              <PrimaryButton onClick={openLogin}>
                 Inicia sesión
               </PrimaryButton>
-              <PrimaryButton to="/register">
+              <PrimaryButton onClick={openRegister}>
                 Regístrate
               </PrimaryButton>
             </ButtonContainer>
