@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useVoice } from '../contexts/VoiceContext';
-import { consultaService, retoService } from '../services/api';
+import { consultaService, retoService, realtimeSessionService } from '../services/api';
 
 import VideoMentorPopup from '../components/VideoMentorPopup';
 import AudioCalibration from '../components/AudioCalibration';
@@ -12,8 +12,7 @@ import MobileSidebarDrawer from '../components/MobileSidebarDrawer';
 import MentorProgressPanel from '../components/MentorProgressPanel';
 import EvaluationProgress from '../components/EvaluationProgress';
 import QuickQuestions from '../components/QuickQuestions';
-import RealtimePanel from '../components/RealtimePanel';
-import { isRealtimeSupported } from '../services/realtimeService';
+import { RealtimeSession, SESSION_STATES, isRealtimeSupported } from '../services/realtimeService';
 
 import './ConsultaAsistentePage.css';
 
@@ -158,7 +157,16 @@ const [retroalimentacionActiva, setRetroalimentacionActiva] = useState(false);
 const [numeroPregunta, setNumeroPregunta] = useState(null);
 const [videoIdRetro, setVideoIdRetro] = useState(null);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
-  const [useRealtimeMode, setUseRealtimeMode] = useState(false);
+  // Realtime states
+  const [realtimeActive, setRealtimeActive] = useState(false);
+  const [realtimeState, setRealtimeState] = useState(SESSION_STATES.DISCONNECTED);
+  const [realtimeUserTranscripts, setRealtimeUserTranscripts] = useState([]);
+  const [realtimeAiTranscript, setRealtimeAiTranscript] = useState('');
+  const [realtimeAiTranscripts, setRealtimeAiTranscripts] = useState([]);
+  const [realtimeAudioLevel, setRealtimeAudioLevel] = useState(0);
+  const [realtimeError, setRealtimeError] = useState('');
+  const [showRealtimeTranscript, setShowRealtimeTranscript] = useState(true);
+  const [realtimeSessionDuration, setRealtimeSessionDuration] = useState(0);
 
   // Estados para modo Reto
   const [retoState, setRetoState] = useState({
@@ -174,6 +182,10 @@ const [videoIdRetro, setVideoIdRetro] = useState(null);
   // ✅ AGREGAR ESTAS LÍNEAS
 const awaitingValidationRef = useRef(false);
 const awaitingConfirmationRef = useRef(false);
+const realtimeSessionRef = useRef(null);
+const realtimeAiTranscriptBuffer = useRef('');
+const realtimeTimerRef = useRef(null);
+const transcriptsSavedRef = useRef(false);
 
   // --- INICIO: FASE 6 ---
   // AGREGAR después de la línea 50 (estados)
@@ -993,17 +1005,135 @@ await speak(assistantMessage.text, () => {
     }
   }, [documentId, user, sessionToken, messages, isListening, stopListening, speak, startListening, detectModeChange, navigate, currentMode, evaluationState, updateEvaluationProgress, finishEvaluation]);
 
+  // ====== REALTIME: Funciones de conexión/desconexión ======
+
+  const connectRealtime = useCallback(async (mode) => {
+    setRealtimeError('');
+    setRealtimeUserTranscripts([]);
+    setRealtimeAiTranscripts([]);
+    setRealtimeAiTranscript('');
+    setRealtimeSessionDuration(0);
+    realtimeAiTranscriptBuffer.current = '';
+    transcriptsSavedRef.current = false;
+
+    const session = new RealtimeSession({
+      documentId,
+      mode: mode || currentMode,
+      onStateChange: (state) => setRealtimeState(state),
+      onTranscript: (text) => {
+        setRealtimeUserTranscripts(prev => [...prev, text]);
+      },
+      onAITranscript: (text, isDone) => {
+        if (isDone) {
+          setRealtimeAiTranscripts(prev => [...prev, text]);
+          setRealtimeAiTranscript('');
+          realtimeAiTranscriptBuffer.current = '';
+        } else {
+          realtimeAiTranscriptBuffer.current += text;
+          setRealtimeAiTranscript(realtimeAiTranscriptBuffer.current);
+        }
+      },
+      onError: (msg) => {
+        setRealtimeError(msg);
+        if (msg === 'REALTIME_NOT_AVAILABLE') {
+          setRealtimeActive(false);
+        }
+      },
+      onAudioLevel: (level) => setRealtimeAudioLevel(level)
+    });
+
+    realtimeSessionRef.current = session;
+    setRealtimeActive(true);
+    await session.connect();
+  }, [documentId, currentMode]);
+
+  // Guardar transcripciones realtime antes de desconectar
+  const saveRealtimeTranscripts = useCallback(async () => {
+    if (transcriptsSavedRef.current) return;
+    if (!realtimeUserTranscripts || realtimeUserTranscripts.length === 0) return;
+    transcriptsSavedRef.current = true;
+    try {
+      const transcriptsPayload = realtimeUserTranscripts.map(text => ({ text }));
+      const res = await realtimeSessionService.saveTranscripts(
+        documentId, transcriptsPayload, realtimeSessionDuration, currentMode
+      );
+      console.log('Transcripciones guardadas:', res.data);
+    } catch (err) {
+      console.error('Error guardando transcripciones:', err);
+    }
+  }, [realtimeUserTranscripts, documentId, realtimeSessionDuration, currentMode]);
+
+  const disconnectRealtime = useCallback(() => {
+    saveRealtimeTranscripts();
+    if (realtimeSessionRef.current) {
+      realtimeSessionRef.current.disconnect();
+      realtimeSessionRef.current = null;
+    }
+    setRealtimeActive(false);
+    setRealtimeState(SESSION_STATES.DISCONNECTED);
+    if (realtimeTimerRef.current) {
+      clearInterval(realtimeTimerRef.current);
+      realtimeTimerRef.current = null;
+    }
+  }, [saveRealtimeTranscripts]);
+
+  const handleRealtimeFallbackToText = useCallback(() => {
+    disconnectRealtime();
+  }, [disconnectRealtime]);
+
+  const handleRealtimeFinish = useCallback(() => {
+    disconnectRealtime();
+    navigate('/documentos');
+  }, [disconnectRealtime, navigate]);
+
+  // Timer de duración de sesión realtime
+  useEffect(() => {
+    const isActiveRealtime = realtimeState === SESSION_STATES.CONNECTED ||
+      realtimeState === SESSION_STATES.LISTENING ||
+      realtimeState === SESSION_STATES.AI_SPEAKING;
+
+    if (isActiveRealtime) {
+      realtimeTimerRef.current = setInterval(() => {
+        setRealtimeSessionDuration(d => d + 1);
+      }, 1000);
+    } else {
+      if (realtimeTimerRef.current) {
+        clearInterval(realtimeTimerRef.current);
+        realtimeTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (realtimeTimerRef.current) clearInterval(realtimeTimerRef.current);
+    };
+  }, [realtimeState]);
+
+  // Cleanup realtime al desmontar
+  useEffect(() => {
+    return () => {
+      if (realtimeSessionRef.current) {
+        realtimeSessionRef.current.disconnect();
+      }
+    };
+  }, []);
+
 const startFirstInteraction = useCallback(async (selectedMode = 'consulta') => {
   if (!firstInteraction) {
     setFirstInteraction(true);
     setShowWelcomeModal(false);
     setLastProcessedTranscript('');
-    
-    console.log('🎯 Iniciando con modo:', selectedMode);
+
+    console.log('Iniciando con modo:', selectedMode);
 
     try {
-      // ✅ PASO 1: Establecer el modo INMEDIATAMENTE
+      // PASO 1: Establecer el modo INMEDIATAMENTE
       setCurrentMode(selectedMode);
+
+      // PASO 1.5: Solo modo consulta usa Realtime (mentor/evaluación/reto mantienen flujo tradicional)
+      if (isRealtimeSupported() && selectedMode === 'consulta') {
+        console.log('Iniciando modo Realtime para:', selectedMode);
+        connectRealtime(selectedMode);
+        return; // No ejecutar flujo texto
+      }
       
       // ✅ PASO 2: Según el modo, ejecutar acción correspondiente
       if (selectedMode === 'mentor') {
@@ -1101,7 +1231,7 @@ const startFirstInteraction = useCallback(async (selectedMode = 'consulta') => {
       console.error('❌ Error al iniciar la interacción:', error);
     }
   }
-}, [firstInteraction, messages, speak, resetTranscript, startListening, handleUserMessage]);
+}, [firstInteraction, messages, speak, resetTranscript, startListening, handleUserMessage, connectRealtime]);
 
 useEffect(() => {
     // ✅ NO PROCESAR si hay un video activo
@@ -1206,18 +1336,23 @@ const handleVoiceButtonClick = useCallback(() => {
   }, [handleSendMessage]);
 
 const handleGoBack = useCallback(() => {
-  console.log('🧹 Limpiando sessionToken antes de regresar');
-  
+  console.log('Limpiando sessionToken antes de regresar');
+
+  // Guardar transcripciones y desconectar realtime si activo
+  saveRealtimeTranscripts();
+  if (realtimeSessionRef.current) {
+    realtimeSessionRef.current.disconnect();
+    realtimeSessionRef.current = null;
+  }
+
   // Limpiar sessionToken
   localStorage.removeItem('sessionToken');
   setSessionToken(null);
   sessionStorage.removeItem('lastDocumentId');
-  
-  console.log('✅ SessionToken limpiado');
-  
+
   // Navegar
   navigate('/documentos');
-}, [navigate, setSessionToken]);
+}, [navigate, setSessionToken, saveRealtimeTranscripts]);
 
   const handleToggleCalibration = useCallback(() => {
   setShowCalibration(prev => !prev);
@@ -1503,16 +1638,162 @@ const handleCloseVideo = (lastTime, duration) => {
   if (!user) { return ( <div style={{ minHeight: '100vh', background: 'var(--color-background, #121826)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexDirection: 'column', gap: '20px' }}><p>Error: Usuario no autenticado</p><button onClick={() => navigate('/login')} style={{ background: 'var(--color-primary, #0891B2)', color: 'white', border: 'none', padding: '15px 30px', borderRadius: '25px' }}>Ir al Login</button></div> ); }
   if (isInitializing) { return ( <div style={{ minHeight: '100vh', background: 'var(--color-background, #121826)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Cargando asistente MentorIA...</div> ); }
 
-  // Modo Realtime: renderizar panel dedicado
-  if (useRealtimeMode) {
+  // Modo Realtime activo: renderizar UI inline con orbe
+  if (realtimeActive) {
+    const isRealtimeConnected = realtimeState === SESSION_STATES.CONNECTED || realtimeState === SESSION_STATES.LISTENING || realtimeState === SESSION_STATES.AI_SPEAKING;
+    const formatDuration = (seconds) => {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+    const getOrbStyle = () => {
+      switch (realtimeState) {
+        case SESSION_STATES.CONNECTING: return { border: '3px solid #6b7280', background: 'radial-gradient(circle, rgba(107,114,128,0.15) 0%, transparent 70%)' };
+        case SESSION_STATES.CONNECTED: return { border: '3px solid #10b981', background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)' };
+        case SESSION_STATES.LISTENING: return { border: '3px solid #ef4444', background: 'radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%)' };
+        case SESSION_STATES.AI_SPEAKING: return { border: '3px solid #0891B2', background: 'radial-gradient(circle, rgba(8,145,178,0.15) 0%, transparent 70%)' };
+        case SESSION_STATES.ERROR: return { border: '3px solid #ef4444', background: 'radial-gradient(circle, rgba(239,68,68,0.1) 0%, transparent 70%)' };
+        default: return { border: '3px solid #374151', background: 'rgba(255,255,255,0.03)' };
+      }
+    };
+    const getStateLabel = () => {
+      switch (realtimeState) {
+        case SESSION_STATES.CONNECTING: return 'Conectando...';
+        case SESSION_STATES.CONNECTED: return 'Listo — habla para comenzar';
+        case SESSION_STATES.LISTENING: return 'Escuchando...';
+        case SESSION_STATES.AI_SPEAKING: return 'MentorIA respondiendo...';
+        case SESSION_STATES.ERROR: return 'Error de conexión';
+        default: return 'Desconectado';
+      }
+    };
+    const getStateColor = () => {
+      switch (realtimeState) {
+        case SESSION_STATES.CONNECTING: return '#6b7280';
+        case SESSION_STATES.CONNECTED: return '#10b981';
+        case SESSION_STATES.LISTENING: return '#ef4444';
+        case SESSION_STATES.AI_SPEAKING: return '#0891B2';
+        case SESSION_STATES.ERROR: return '#ef4444';
+        default: return '#6b7280';
+      }
+    };
+
     return (
-      <RealtimePanel
-        documentId={documentId}
-        mode={currentMode}
-        documentInfo={documentInfo}
-        onFallbackToText={() => setUseRealtimeMode(false)}
-        onGoBack={handleGoBack}
-      />
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#121826', color: '#F1F5F9', fontFamily: "'Inter', sans-serif" }}>
+        {/* Header */}
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 25px', background: 'rgba(18, 24, 38, 0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={handleRealtimeFinish} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', color: 'white', fontSize: '1.2rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {isRealtimeConnected ? '\u2715' : '\u2190'}
+            </button>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>MentorIA Realtime</h3>
+              {documentInfo && <p style={{ margin: 0, fontSize: '0.7rem', color: '#94A3B8' }}>{documentInfo.titulo}</p>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {isRealtimeConnected && <span style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{formatDuration(realtimeSessionDuration)}</span>}
+            <button onClick={handleRealtimeFallbackToText} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '16px', padding: '6px 14px', color: '#94A3B8', fontSize: '0.8rem', cursor: 'pointer' }}>
+              Modo Texto
+            </button>
+          </div>
+        </header>
+
+        {/* Zona central con orbe */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', gap: '2rem', overflow: 'hidden' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: '160px', height: '160px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', transition: 'all 0.5s ease', animation: (realtimeState === SESSION_STATES.LISTENING || realtimeState === SESSION_STATES.AI_SPEAKING) ? 'rtPulse 1.5s infinite' : (realtimeState === SESSION_STATES.CONNECTING ? 'rtPulse 1s infinite' : 'none'), ...getOrbStyle() }}>
+              {realtimeState === SESSION_STATES.LISTENING && (
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '80px' }}>
+                  {[0,1,2,3,4].map(i => (
+                    <div key={i} style={{ width: '6px', backgroundColor: '#ef4444', borderRadius: '3px', height: `${20 + realtimeAudioLevel * 300 + Math.sin(Date.now()/200 + i) * 15}px`, maxHeight: '70px', transition: 'height 0.1s ease' }} />
+                  ))}
+                </div>
+              )}
+              {realtimeState === SESSION_STATES.AI_SPEAKING && (
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '80px' }}>
+                  {[0,1,2,3,4].map(i => (
+                    <div key={i} style={{ width: '6px', backgroundColor: '#0891B2', borderRadius: '3px', animation: `rtSoundWave 0.8s ${i * 0.15}s ease-in-out infinite`, height: '40px' }} />
+                  ))}
+                </div>
+              )}
+              {realtimeState === SESSION_STATES.CONNECTED && <span style={{ fontSize: '3rem' }}>&#127908;</span>}
+              {realtimeState === SESSION_STATES.DISCONNECTED && <span style={{ fontSize: '3rem', opacity: 0.4 }}>&#127908;</span>}
+              {realtimeState === SESSION_STATES.CONNECTING && <span style={{ fontSize: '2.5rem' }}>&#8987;</span>}
+              {realtimeState === SESSION_STATES.ERROR && <span style={{ fontSize: '2.5rem' }}>&#9888;</span>}
+            </div>
+            <p style={{ marginTop: '1rem', color: getStateColor(), fontSize: '1rem', fontWeight: 500 }}>{getStateLabel()}</p>
+          </div>
+
+          {/* Botones de acción */}
+          {realtimeState === SESSION_STATES.AI_SPEAKING && (
+            <button onClick={() => realtimeSessionRef.current?.interrupt()} style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid #F43F5E', borderRadius: '50px', padding: '12px 32px', color: '#F43F5E', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer' }}>
+              Interrumpir
+            </button>
+          )}
+
+          {isRealtimeConnected && (
+            <button onClick={handleRealtimeFinish} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '50px', padding: '10px 28px', color: '#ef4444', fontSize: '0.9rem', cursor: 'pointer' }}>
+              Finalizar sesion
+            </button>
+          )}
+
+          {/* Error */}
+          {realtimeError && realtimeError !== 'REALTIME_NOT_AVAILABLE' && (
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', padding: '12px 20px', maxWidth: '500px', color: '#fca5a5', fontSize: '0.9rem', textAlign: 'center' }}>
+              {realtimeError}
+              <br />
+              <button onClick={handleRealtimeFallbackToText} style={{ marginTop: '8px', background: 'none', border: '1px solid #94A3B8', borderRadius: '16px', padding: '6px 16px', color: '#94A3B8', fontSize: '0.85rem', cursor: 'pointer' }}>
+                Cambiar a modo texto
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Panel de transcripción */}
+        {showRealtimeTranscript && (realtimeUserTranscripts.length > 0 || realtimeAiTranscripts.length > 0 || realtimeAiTranscript) && (
+          <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '12px 20px', background: 'rgba(30, 41, 59, 0.8)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600 }}>Transcripcion</span>
+              <button onClick={() => setShowRealtimeTranscript(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.8rem' }}>Ocultar</button>
+            </div>
+            {(() => {
+              // Intercalar transcripciones de usuario y AI
+              const allTranscripts = [];
+              const maxLen = Math.max(realtimeUserTranscripts.length, realtimeAiTranscripts.length);
+              for (let i = 0; i < maxLen; i++) {
+                if (i < realtimeUserTranscripts.length) allTranscripts.push({ type: 'user', text: realtimeUserTranscripts[i], idx: i });
+                if (i < realtimeAiTranscripts.length) allTranscripts.push({ type: 'ai', text: realtimeAiTranscripts[i], idx: i });
+              }
+              return allTranscripts.map((t, i) => (
+                <p key={`${t.type}-${t.idx}`} style={{ margin: '4px 0', fontSize: '0.85rem', color: t.type === 'user' ? '#22D3EE' : '#94A3B8' }}>
+                  <strong>{t.type === 'user' ? 'Tu:' : 'MentorIA:'}</strong> {t.text}
+                </p>
+              ));
+            })()}
+            {realtimeAiTranscript && (
+              <p style={{ margin: '4px 0', fontSize: '0.85rem', color: '#94A3B8', fontStyle: 'italic' }}>
+                <strong>MentorIA:</strong> {realtimeAiTranscript}...
+              </p>
+            )}
+          </div>
+        )}
+        {!showRealtimeTranscript && (realtimeUserTranscripts.length > 0 || realtimeAiTranscripts.length > 0) && (
+          <button onClick={() => setShowRealtimeTranscript(true)} style={{ position: 'fixed', bottom: '20px', right: '20px', background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '8px 16px', color: '#94A3B8', fontSize: '0.8rem', cursor: 'pointer' }}>
+            Mostrar transcripcion
+          </button>
+        )}
+
+        <style>{`
+          @keyframes rtPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+          }
+          @keyframes rtSoundWave {
+            0%, 100% { transform: scaleY(0.3); }
+            50% { transform: scaleY(1); }
+          }
+        `}</style>
+      </div>
     );
   }
 
@@ -2040,32 +2321,11 @@ Modos ▾
 
       </div>
 
-      {/* Botón Modo Realtime */}
+      {/* Info: Todos los modos inician en realtime si el navegador lo soporta */}
       {isRealtimeSupported() && (
-        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border, rgba(255,255,255,0.1))', textAlign: 'center' }}>
-          <button
-            onClick={() => { setShowWelcomeModal(false); setUseRealtimeMode(true); }}
-            style={{
-              background: 'linear-gradient(135deg, rgba(8, 145, 178, 0.15), rgba(34, 211, 238, 0.1))',
-              border: '1px solid rgba(8, 145, 178, 0.4)',
-              borderRadius: '12px',
-              padding: '12px 24px',
-              color: '#22D3EE',
-              fontSize: '0.95rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              width: '100%',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            🎙 Modo Realtime — Conversacion por voz fluida
-          </button>
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
-            Conversacion bidireccional en tiempo real con MentorIA
+        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.75rem', color: '#22D3EE', margin: 0 }}>
+            &#127908; Conversacion por voz en tiempo real activada
           </p>
         </div>
       )}

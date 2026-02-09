@@ -9,13 +9,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { consultaService, retoService } from '../services/api';
+import { consultaService, retoService, realtimeSessionService } from '../services/api';
 import { whisperService } from '../services/whisperService';
 import SilenceDetector from '../services/silenceDetector';
 import VideoMentorPopupiPhone from '../components/VideoMentorPopupiPhone';
 import MobileSidebarDrawer from '../components/MobileSidebarDrawer';
-import RealtimePanel from '../components/RealtimePanel';
-import { isRealtimeSupported } from '../services/realtimeService';
+import { RealtimeSession, SESSION_STATES, isRealtimeSupported } from '../services/realtimeService';
 import MentorProgressPanel from '../components/MentorProgressPanel';
 import EvaluationProgress from '../components/EvaluationProgress';
 import QuickQuestions from '../components/QuickQuestions';
@@ -78,7 +77,16 @@ const ConsultaAsistenteiPhone = () => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [firstInteraction, setFirstInteraction] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
-  const [useRealtimeMode, setUseRealtimeMode] = useState(false);
+  // Realtime states
+  const [realtimeActive, setRealtimeActive] = useState(false);
+  const [realtimeState, setRealtimeState] = useState(SESSION_STATES.DISCONNECTED);
+  const [realtimeUserTranscripts, setRealtimeUserTranscripts] = useState([]);
+  const [realtimeAiTranscript, setRealtimeAiTranscript] = useState('');
+  const [realtimeAiTranscripts, setRealtimeAiTranscripts] = useState([]);
+  const [realtimeAudioLevel, setRealtimeAudioLevel] = useState(0);
+  const [realtimeError, setRealtimeError] = useState('');
+  const [showRealtimeTranscript, setShowRealtimeTranscript] = useState(true);
+  const [realtimeSessionDuration, setRealtimeSessionDuration] = useState(0);
 
   // Estados para modo Reto
   const [retoState, setRetoState] = useState({
@@ -138,6 +146,10 @@ const [lastProcessedTranscript, setLastProcessedTranscript] = useState('');
   const audioLevelIntervalRef = useRef(null);
   
   const cancelTranscriptionRef = useRef(false);
+  const realtimeSessionRef = useRef(null);
+  const realtimeAiTranscriptBuffer = useRef('');
+  const realtimeTimerRef = useRef(null);
+  const transcriptsSavedRef = useRef(false);
 
   // Ref para siempre acceder a la función más reciente de sendQuestionToBackend
   const sendQuestionToBackendRef = useRef(null);
@@ -150,8 +162,108 @@ const [lastProcessedTranscript, setLastProcessedTranscript] = useState('');
   currentModeRef.current = currentMode;
   retoStateRef.current = retoState;
 
+  // ====== REALTIME: Funciones de conexión/desconexión ======
+  const connectRealtime = useCallback(async (mode) => {
+    setRealtimeError('');
+    setRealtimeUserTranscripts([]);
+    setRealtimeAiTranscripts([]);
+    setRealtimeAiTranscript('');
+    setRealtimeSessionDuration(0);
+    realtimeAiTranscriptBuffer.current = '';
+    transcriptsSavedRef.current = false;
+
+    const session = new RealtimeSession({
+      documentId,
+      mode: mode || currentMode,
+      onStateChange: (state) => setRealtimeState(state),
+      onTranscript: (text) => setRealtimeUserTranscripts(prev => [...prev, text]),
+      onAITranscript: (text, isDone) => {
+        if (isDone) {
+          setRealtimeAiTranscripts(prev => [...prev, text]);
+          setRealtimeAiTranscript('');
+          realtimeAiTranscriptBuffer.current = '';
+        } else {
+          realtimeAiTranscriptBuffer.current += text;
+          setRealtimeAiTranscript(realtimeAiTranscriptBuffer.current);
+        }
+      },
+      onError: (msg) => {
+        setRealtimeError(msg);
+        if (msg === 'REALTIME_NOT_AVAILABLE') setRealtimeActive(false);
+      },
+      onAudioLevel: (level) => setRealtimeAudioLevel(level)
+    });
+
+    realtimeSessionRef.current = session;
+    setRealtimeActive(true);
+    await session.connect();
+  }, [documentId, currentMode]);
+
+  // Guardar transcripciones realtime antes de desconectar
+  const saveRealtimeTranscripts = useCallback(async () => {
+    if (transcriptsSavedRef.current) return;
+    if (!realtimeUserTranscripts || realtimeUserTranscripts.length === 0) return;
+    transcriptsSavedRef.current = true;
+    try {
+      const transcriptsPayload = realtimeUserTranscripts.map(text => ({ text }));
+      const res = await realtimeSessionService.saveTranscripts(
+        documentId, transcriptsPayload, realtimeSessionDuration, currentMode
+      );
+      console.log('Transcripciones guardadas:', res.data);
+    } catch (err) {
+      console.error('Error guardando transcripciones:', err);
+    }
+  }, [realtimeUserTranscripts, documentId, realtimeSessionDuration, currentMode]);
+
+  const disconnectRealtime = useCallback(() => {
+    saveRealtimeTranscripts();
+    if (realtimeSessionRef.current) {
+      realtimeSessionRef.current.disconnect();
+      realtimeSessionRef.current = null;
+    }
+    setRealtimeActive(false);
+    setRealtimeState(SESSION_STATES.DISCONNECTED);
+    if (realtimeTimerRef.current) {
+      clearInterval(realtimeTimerRef.current);
+      realtimeTimerRef.current = null;
+    }
+  }, [saveRealtimeTranscripts]);
+
+  const handleRealtimeFallbackToText = useCallback(() => {
+    disconnectRealtime();
+  }, [disconnectRealtime]);
+
+  const handleRealtimeFinish = useCallback(() => {
+    disconnectRealtime();
+    navigate('/documentos');
+  }, [disconnectRealtime, navigate]);
+
+  // Timer de duración de sesión realtime
+  useEffect(() => {
+    const isActiveRT = realtimeState === SESSION_STATES.CONNECTED ||
+      realtimeState === SESSION_STATES.LISTENING ||
+      realtimeState === SESSION_STATES.AI_SPEAKING;
+    if (isActiveRT) {
+      realtimeTimerRef.current = setInterval(() => setRealtimeSessionDuration(d => d + 1), 1000);
+    } else {
+      if (realtimeTimerRef.current) { clearInterval(realtimeTimerRef.current); realtimeTimerRef.current = null; }
+    }
+    return () => { if (realtimeTimerRef.current) clearInterval(realtimeTimerRef.current); };
+  }, [realtimeState]);
+
+  // Cleanup realtime al desmontar
+  useEffect(() => {
+    return () => { if (realtimeSessionRef.current) realtimeSessionRef.current.disconnect(); };
+  }, []);
+
   // --- FUNCIONES DE LIMPIEZA Y NAVEGACIÓN ---
 const handleGoBack = useCallback(() => {
+  // Guardar transcripciones y desconectar realtime si activo
+  saveRealtimeTranscripts();
+  if (realtimeSessionRef.current) {
+    realtimeSessionRef.current.disconnect();
+    realtimeSessionRef.current = null;
+  }
   // 1. Detener audio en reproducción
   if (audioRef.current) {
     audioRef.current.pause();
@@ -199,7 +311,7 @@ const handleGoBack = useCallback(() => {
 
   // 6. Volver a la lista de documentos
   navigate('/documentos');
-}, [navigate]);
+}, [navigate, saveRealtimeTranscripts]);
 
 
   // --- AUDIO UNLOCK (iOS) ---
@@ -1175,11 +1287,18 @@ const handleModeChange = useCallback((newMode) => {
       setFirstInteraction(true);
       setShowWelcomeModal(false);
       enableAudioContext();
-      
+
       sessionStorage.setItem('awaitingConfirmation', 'false');
       sessionStorage.setItem('awaitingValidation', 'false');
-      
+
       setCurrentMode(selectedMode);
+
+      // Solo modo consulta usa Realtime (mentor/evaluación/reto mantienen flujo tradicional)
+      if (isRealtimeSupported() && selectedMode === 'consulta') {
+        console.log('Iniciando modo Realtime para:', selectedMode);
+        connectRealtime(selectedMode);
+        return;
+      }
 
       // Pequeña espera para asegurar renderizado
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -1227,22 +1346,105 @@ const handleModeChange = useCallback((newMode) => {
       }
 
     }
-  }, [firstInteraction, enableAudioContext, messages, speak, startListening]);
+  }, [firstInteraction, enableAudioContext, messages, speak, startListening, connectRealtime]);
 
   const currentModeInfo = getModeInfo(currentMode);
 
   if (isInitializing) return <div className="iphone-loading">Cargando...</div>;
 
-  // Modo Realtime: renderizar panel dedicado
-  if (useRealtimeMode) {
+  // Modo Realtime activo: renderizar UI inline
+  if (realtimeActive) {
+    const isRTConnected = realtimeState === SESSION_STATES.CONNECTED || realtimeState === SESSION_STATES.LISTENING || realtimeState === SESSION_STATES.AI_SPEAKING;
+    const fmtDur = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+    const rtColor = { [SESSION_STATES.CONNECTING]: '#6b7280', [SESSION_STATES.CONNECTED]: '#10b981', [SESSION_STATES.LISTENING]: '#ef4444', [SESSION_STATES.AI_SPEAKING]: '#0891B2', [SESSION_STATES.ERROR]: '#ef4444' }[realtimeState] || '#6b7280';
+    const rtLabel = { [SESSION_STATES.CONNECTING]: 'Conectando...', [SESSION_STATES.CONNECTED]: 'Listo — habla', [SESSION_STATES.LISTENING]: 'Escuchando...', [SESSION_STATES.AI_SPEAKING]: 'MentorIA respondiendo...', [SESSION_STATES.ERROR]: 'Error' }[realtimeState] || 'Desconectado';
+
     return (
-      <RealtimePanel
-        documentId={documentId}
-        mode={currentMode}
-        documentInfo={documentInfo}
-        onFallbackToText={() => setUseRealtimeMode(false)}
-        onGoBack={handleGoBack}
-      />
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#121826', color: '#F1F5F9', fontFamily: "'Inter', sans-serif" }}>
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(18,24,38,0.95)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button onClick={handleRealtimeFinish} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {isRTConnected ? '\u2715' : '\u2190'}
+            </button>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>MentorIA Realtime</h3>
+              {documentInfo && <p style={{ margin: 0, fontSize: '0.65rem', color: '#94A3B8' }}>{documentInfo.titulo}</p>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {isRTConnected && <span style={{ fontSize: '0.8rem', color: '#94A3B8' }}>{fmtDur(realtimeSessionDuration)}</span>}
+            <button onClick={handleRealtimeFallbackToText} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px', padding: '5px 12px', color: '#94A3B8', fontSize: '0.75rem', cursor: 'pointer' }}>Texto</button>
+          </div>
+        </header>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '1.5rem' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: '140px', height: '140px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', border: `3px solid ${rtColor}`, background: `radial-gradient(circle, ${rtColor}22 0%, transparent 70%)`, transition: 'all 0.5s ease', animation: (realtimeState === SESSION_STATES.LISTENING || realtimeState === SESSION_STATES.AI_SPEAKING || realtimeState === SESSION_STATES.CONNECTING) ? 'rtPulseI 1.5s infinite' : 'none' }}>
+              {realtimeState === SESSION_STATES.LISTENING && (
+                <div style={{ display: 'flex', gap: '3px', alignItems: 'center', height: '70px' }}>
+                  {[0,1,2,3,4].map(i => <div key={i} style={{ width: '5px', backgroundColor: '#ef4444', borderRadius: '3px', height: `${18 + realtimeAudioLevel * 250 + Math.sin(Date.now()/200 + i) * 12}px`, maxHeight: '60px', transition: 'height 0.1s' }} />)}
+                </div>
+              )}
+              {realtimeState === SESSION_STATES.AI_SPEAKING && (
+                <div style={{ display: 'flex', gap: '3px', alignItems: 'center', height: '70px' }}>
+                  {[0,1,2,3,4].map(i => <div key={i} style={{ width: '5px', backgroundColor: '#0891B2', borderRadius: '3px', animation: `rtWaveI 0.8s ${i*0.15}s ease-in-out infinite`, height: '35px' }} />)}
+                </div>
+              )}
+              {realtimeState === SESSION_STATES.CONNECTED && <span style={{ fontSize: '2.5rem' }}>&#127908;</span>}
+              {realtimeState === SESSION_STATES.DISCONNECTED && <span style={{ fontSize: '2.5rem', opacity: 0.4 }}>&#127908;</span>}
+              {realtimeState === SESSION_STATES.CONNECTING && <span style={{ fontSize: '2rem' }}>&#8987;</span>}
+              {realtimeState === SESSION_STATES.ERROR && <span style={{ fontSize: '2rem' }}>&#9888;</span>}
+            </div>
+            <p style={{ marginTop: '0.8rem', color: rtColor, fontSize: '0.9rem', fontWeight: 500 }}>{rtLabel}</p>
+          </div>
+
+          {realtimeState === SESSION_STATES.AI_SPEAKING && (
+            <button onClick={() => realtimeSessionRef.current?.interrupt()} style={{ background: 'rgba(244,63,94,0.15)', border: '1px solid #F43F5E', borderRadius: '50px', padding: '10px 28px', color: '#F43F5E', fontSize: '0.85rem', cursor: 'pointer' }}>Interrumpir</button>
+          )}
+          {isRTConnected && (
+            <button onClick={handleRealtimeFinish} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '50px', padding: '8px 24px', color: '#ef4444', fontSize: '0.85rem', cursor: 'pointer' }}>Finalizar</button>
+          )}
+          {realtimeError && realtimeError !== 'REALTIME_NOT_AVAILABLE' && (
+            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '10px 16px', maxWidth: '90%', color: '#fca5a5', fontSize: '0.85rem', textAlign: 'center' }}>
+              {realtimeError}<br/>
+              <button onClick={handleRealtimeFallbackToText} style={{ marginTop: '6px', background: 'none', border: '1px solid #94A3B8', borderRadius: '14px', padding: '5px 14px', color: '#94A3B8', fontSize: '0.8rem', cursor: 'pointer' }}>Modo texto</button>
+            </div>
+          )}
+        </div>
+
+        {showRealtimeTranscript && (realtimeUserTranscripts.length > 0 || realtimeAiTranscripts.length > 0 || realtimeAiTranscript) && (
+          <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '10px 16px', background: 'rgba(30,41,59,0.8)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 600 }}>Transcripcion</span>
+              <button onClick={() => setShowRealtimeTranscript(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.75rem' }}>Ocultar</button>
+            </div>
+            {(() => {
+              const all = [];
+              const maxL = Math.max(realtimeUserTranscripts.length, realtimeAiTranscripts.length);
+              for (let i = 0; i < maxL; i++) {
+                if (i < realtimeUserTranscripts.length) all.push({ t: 'u', text: realtimeUserTranscripts[i], i });
+                if (i < realtimeAiTranscripts.length) all.push({ t: 'a', text: realtimeAiTranscripts[i], i });
+              }
+              return all.map((x, j) => (
+                <p key={`${x.t}-${x.i}`} style={{ margin: '3px 0', fontSize: '0.8rem', color: x.t === 'u' ? '#22D3EE' : '#94A3B8' }}>
+                  <strong>{x.t === 'u' ? 'Tu:' : 'MentorIA:'}</strong> {x.text}
+                </p>
+              ));
+            })()}
+            {realtimeAiTranscript && (
+              <p style={{ margin: '3px 0', fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}><strong>MentorIA:</strong> {realtimeAiTranscript}...</p>
+            )}
+          </div>
+        )}
+        {!showRealtimeTranscript && (realtimeUserTranscripts.length > 0 || realtimeAiTranscripts.length > 0) && (
+          <button onClick={() => setShowRealtimeTranscript(true)} style={{ position: 'fixed', bottom: '16px', right: '16px', background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '18px', padding: '6px 14px', color: '#94A3B8', fontSize: '0.75rem', cursor: 'pointer' }}>Transcripcion</button>
+        )}
+
+        <style>{`
+          @keyframes rtPulseI { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.05);opacity:0.8} }
+          @keyframes rtWaveI { 0%,100%{transform:scaleY(0.3)} 50%{transform:scaleY(1)} }
+        `}</style>
+      </div>
     );
   }
 
@@ -1375,20 +1577,11 @@ const handleModeChange = useCallback((newMode) => {
                   )}
                 </button>
 
-                {/* Botón Modo Realtime */}
+                {/* Info: Realtime activado automáticamente */}
                 {isRealtimeSupported() && (
-                  <button
-                    onClick={() => { setShowWelcomeModal(false); setUseRealtimeMode(true); }}
-                    className="mode-btn realtime"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(8, 145, 178, 0.2), rgba(34, 211, 238, 0.1))',
-                      border: '1px solid rgba(8, 145, 178, 0.4)',
-                      color: '#22D3EE'
-                    }}
-                  >
-                    <span>🎙 Modo Realtime</span>
-                    <span className="coming-soon-tag" style={{ color: '#22D3EE', background: 'rgba(8, 145, 178, 0.15)' }}>Conversacion por voz</span>
-                  </button>
+                  <div style={{ textAlign: 'center', padding: '6px 0' }}>
+                    <span style={{ fontSize: '0.7rem', color: '#22D3EE' }}>&#127908; Voz en tiempo real activada</span>
+                  </div>
                 )}
 
                 {/* Botón de Soporte */}

@@ -70,6 +70,14 @@ export const certificadoService = {
   
   getAvailableVoices: (service) => {
       return axios.get(`${API_BASE_URL}/voices.php?service=${service}`);
+  },
+
+  // Correcciones STT (Speech-to-Text)
+  getSttCorrections: () => {
+      return axios.get(`${API_BASE_URL}/admin/stt-corrections.php`);
+  },
+  updateSttCorrections: (corrections) => {
+      return axios.post(`${API_BASE_URL}/admin/stt-corrections.php`, { corrections });
   }
 
   };
@@ -612,6 +620,14 @@ export const realtimeSessionService = {
   createSession: (documentId, mode = 'consulta') => {
     return axios.post(`${API_BASE_URL}/realtime-session.php`, {
       document_id: documentId,
+      mode: mode
+    });
+  },
+  saveTranscripts: (documentId, transcripts, durationSeconds, mode = 'consulta') => {
+    return axios.post(`${API_BASE_URL}/save-realtime-transcripts.php`, {
+      document_id: documentId,
+      transcripts: transcripts,
+      duration_seconds: durationSeconds,
       mode: mode
     });
   }
