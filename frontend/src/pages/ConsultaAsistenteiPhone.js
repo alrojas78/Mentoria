@@ -1543,7 +1543,20 @@ const handleModeChange = useCallback((newMode) => {
 
       {showWelcomeModal && !isInitializing && (
         <div className="welcome-modal-overlay">
-            <div className="welcome-card">
+            <div className="welcome-card" style={{ position: 'relative' }}>
+                <button
+                  onClick={handleGoBack}
+                  style={{
+                    position: 'absolute', top: '12px', right: '12px',
+                    width: '30px', height: '30px', borderRadius: '50%',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#94A3B8', fontSize: '1.2rem', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.2s', zIndex: 1, lineHeight: 1, padding: 0
+                  }}
+                  title="Volver"
+                >&times;</button>
                 <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
                     <defs><linearGradient id="iChip" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#14b6cb"/><stop offset="100%" stopColor="#22d3ee"/></linearGradient></defs>

@@ -2251,7 +2251,22 @@ Modos ▾
 
 {showWelcomeModal && !isInitializing && (
   <div className="initial-modal">
-    <div className="modal-content">
+    <div className="modal-content" style={{ position: 'relative' }}>
+      <button
+        onClick={handleGoBack}
+        style={{
+          position: 'absolute', top: '14px', right: '14px',
+          width: '34px', height: '34px', borderRadius: '50%',
+          border: '1px solid rgba(255,255,255,0.15)',
+          background: 'rgba(255,255,255,0.08)',
+          color: '#94A3B8', fontSize: '1.3rem', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.2s', zIndex: 1, lineHeight: 1, padding: 0
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#fff'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#94A3B8'; }}
+        title="Volver a contenidos"
+      >&times;</button>
       <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
         <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
           <defs><linearGradient id="mChip" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#14b6cb"/><stop offset="100%" stopColor="#22d3ee"/></linearGradient></defs>
