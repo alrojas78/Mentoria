@@ -1,5 +1,5 @@
 // src/pages/HomePage.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import AuthModal from '../components/AuthModal';
 
@@ -555,6 +555,14 @@ const IconoCart14 = styled.img`
 const HomePage = ({ autoAuth }) => {
   const [authOpen, setAuthOpen] = useState(!!autoAuth);
   const [authTab, setAuthTab] = useState(autoAuth || 'login');
+
+  // Sincronizar cuando autoAuth cambia (navegación desde Header hamburguesa)
+  useEffect(() => {
+    if (autoAuth) {
+      setAuthTab(autoAuth);
+      setAuthOpen(true);
+    }
+  }, [autoAuth]);
 
   const openLogin = () => { setAuthTab('login'); setAuthOpen(true); };
   const openRegister = () => { setAuthTab('register'); setAuthOpen(true); };
