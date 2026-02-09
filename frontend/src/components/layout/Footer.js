@@ -1,5 +1,6 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
+import logoAdium from '../../assets/img/logo_footer.png';
 
 const subtleGlow = keyframes`
   0%, 100% { opacity: 0.5; }
@@ -106,6 +107,7 @@ const VersionBadge = styled.span`
 const FooterLinks = styled.div`
   display: flex;
   gap: 1.5rem;
+  align-items: center;
 
   a {
     color: #64748b;
@@ -115,6 +117,21 @@ const FooterLinks = styled.div`
     &:hover {
       color: #14b6cb;
     }
+  }
+`;
+
+const AdiumLogo = styled.img`
+  height: 28px;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+  filter: brightness(0) invert(1);
+
+  &:hover {
+    opacity: 1;
+  }
+
+  @media (max-width: 767px) {
+    height: 22px;
   }
 `;
 
@@ -157,7 +174,7 @@ const Footer = () => {
             <LogoText>MentorIA</LogoText>
           </LogoSection>
           <ContactSection>
-            <ContactLabel>Contacto</ContactLabel>
+            <AdiumLogo src={logoAdium} alt="Adium" />
             <ContactEmail href="mailto:soporte@ateneo.co">soporte@ateneo.co</ContactEmail>
           </ContactSection>
         </FooterMain>
