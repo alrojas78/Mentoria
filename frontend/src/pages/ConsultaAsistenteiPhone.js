@@ -1546,10 +1546,15 @@ const handleModeChange = useCallback((newMode) => {
             <div className="welcome-card">
                 <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <svg width="24" height="24" viewBox="0 0 100 100" fill="none">
-                    <defs><linearGradient id="iphBrain" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#14b6cb"/><stop offset="100%" stopColor="#22d3ee"/></linearGradient></defs>
-                    <path d="M50 20 C35 20, 18 32, 18 50 C18 68, 35 80, 50 80" stroke="url(#iphBrain)" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
-                    <path d="M50 20 C65 20, 82 32, 82 50 C82 68, 65 80, 50 80" stroke="url(#iphBrain)" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
-                    <circle cx="50" cy="50" r="5" fill="#14b6cb"/><circle cx="32" cy="38" r="3" fill="#22d3ee" opacity="0.8"/><circle cx="68" cy="38" r="3" fill="#14b6cb" opacity="0.8"/>
+                    <defs><linearGradient id="iChip" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#14b6cb"/><stop offset="100%" stopColor="#22d3ee"/></linearGradient></defs>
+                    <rect x="22" y="22" width="56" height="56" rx="12" stroke="url(#iChip)" strokeWidth="3" fill="none"/>
+                    <line x1="38" y1="12" x2="38" y2="22" stroke="#14b6cb" strokeWidth="3" strokeLinecap="round"/>
+                    <line x1="50" y1="12" x2="50" y2="22" stroke="#14b6cb" strokeWidth="3" strokeLinecap="round"/>
+                    <line x1="62" y1="12" x2="62" y2="22" stroke="#14b6cb" strokeWidth="3" strokeLinecap="round"/>
+                    <line x1="38" y1="78" x2="38" y2="88" stroke="#14b6cb" strokeWidth="3" strokeLinecap="round"/>
+                    <line x1="50" y1="78" x2="50" y2="88" stroke="#14b6cb" strokeWidth="3" strokeLinecap="round"/>
+                    <line x1="62" y1="78" x2="62" y2="88" stroke="#14b6cb" strokeWidth="3" strokeLinecap="round"/>
+                    <circle cx="50" cy="50" r="6" fill="#14b6cb"/><circle cx="50" cy="50" r="3" fill="#fff"/>
                   </svg>
                   Asistente MentorIA
                 </h2>

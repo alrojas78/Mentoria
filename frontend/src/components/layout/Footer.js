@@ -118,26 +118,30 @@ const FooterLinks = styled.div`
   }
 `;
 
-// Mini versión del icono neural para el footer
+// Mini chip AI para el footer (versión estática)
 const FooterNeuralIcon = () => (
-  <svg width="34" height="34" viewBox="0 0 100 100" fill="none">
+  <svg width="30" height="30" viewBox="0 0 100 100" fill="none">
     <defs>
-      <linearGradient id="footerBrainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id="fChipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#14b6cb" />
         <stop offset="100%" stopColor="#22d3ee" />
       </linearGradient>
     </defs>
-    <path d="M50 20 C35 20, 18 32, 18 50 C18 68, 35 80, 50 80"
-          stroke="url(#footerBrainGrad)" strokeWidth="3" fill="none" strokeLinecap="round"/>
-    <path d="M50 20 C65 20, 82 32, 82 50 C82 68, 65 80, 50 80"
-          stroke="url(#footerBrainGrad)" strokeWidth="3" fill="none" strokeLinecap="round"/>
+    <rect x="22" y="22" width="56" height="56" rx="12" stroke="url(#fChipGrad)" strokeWidth="2.5" fill="none"/>
+    <line x1="38" y1="12" x2="38" y2="22" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="50" y1="12" x2="50" y2="22" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="62" y1="12" x2="62" y2="22" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="38" y1="78" x2="38" y2="88" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="50" y1="78" x2="50" y2="88" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="62" y1="78" x2="62" y2="88" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="12" y1="38" x2="22" y2="38" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="12" y1="50" x2="22" y2="50" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="12" y1="62" x2="22" y2="62" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="78" y1="38" x2="88" y2="38" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="78" y1="50" x2="88" y2="50" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="78" y1="62" x2="88" y2="62" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
     <circle cx="50" cy="50" r="5" fill="#14b6cb"/>
-    <circle cx="32" cy="38" r="3" fill="#14b6cb" opacity="0.7"/>
-    <circle cx="68" cy="38" r="3" fill="#22d3ee" opacity="0.7"/>
-    <circle cx="28" cy="55" r="2.5" fill="#22d3ee" opacity="0.5"/>
-    <circle cx="72" cy="55" r="2.5" fill="#14b6cb" opacity="0.5"/>
-    <line x1="32" y1="38" x2="50" y2="50" stroke="#14b6cb" strokeWidth="1" opacity="0.4"/>
-    <line x1="68" y1="38" x2="50" y2="50" stroke="#22d3ee" strokeWidth="1" opacity="0.4"/>
+    <circle cx="50" cy="50" r="2.5" fill="#ffffff"/>
   </svg>
 );
 

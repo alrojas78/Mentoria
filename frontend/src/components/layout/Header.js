@@ -4,14 +4,20 @@ import { useAuth } from '../../contexts/AuthContext';
 import styled, { keyframes } from 'styled-components';
 
 // Animaciones
-const neuralPulse = keyframes`
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+const orbitSpin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 `;
 
-const glowPulse = keyframes`
-  0%, 100% { filter: drop-shadow(0 0 3px rgba(20, 182, 203, 0.3)); }
-  50% { filter: drop-shadow(0 0 8px rgba(20, 182, 203, 0.6)); }
+const coreGlow = keyframes`
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(20, 182, 203, 0.4));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(20, 182, 203, 0.9));
+    transform: scale(1.05);
+  }
 `;
 
 const HeaderContainer = styled.header`
@@ -54,12 +60,17 @@ const Logo = styled(Link)`
 `;
 
 const IconWrapper = styled.div`
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: ${glowPulse} 3s ease-in-out infinite;
+  animation: ${coreGlow} 3s ease-in-out infinite;
+
+  .orbit-ring {
+    animation: ${orbitSpin} 8s linear infinite;
+    transform-origin: 50% 50%;
+  }
 `;
 
 const ButtonMenu = styled.button`
@@ -151,58 +162,76 @@ const Button = styled.button`
   }
 `;
 
-// SVG Icono Neural MentorIA
+// SVG Icono MentorIA — estilo AI chip con órbita giratoria y pulso
 const NeuralIcon = () => (
   <IconWrapper>
-    <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Cerebro estilizado con conexiones neurales */}
+    <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="brainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="hChipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#0f355b" />
           <stop offset="100%" stopColor="#14b6cb" />
         </linearGradient>
+        <radialGradient id="hCoreGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#22d3ee" />
+          <stop offset="100%" stopColor="#14b6cb" stopOpacity="0" />
+        </radialGradient>
       </defs>
-      {/* Hemisferio izquierdo */}
-      <path d="M50 20 C35 20, 18 32, 18 50 C18 68, 35 80, 50 80"
-            stroke="url(#brainGrad)" strokeWidth="3" fill="none" strokeLinecap="round"/>
-      {/* Hemisferio derecho */}
-      <path d="M50 20 C65 20, 82 32, 82 50 C82 68, 65 80, 50 80"
-            stroke="url(#brainGrad)" strokeWidth="3" fill="none" strokeLinecap="round"/>
-      {/* Línea central */}
-      <line x1="50" y1="22" x2="50" y2="78" stroke="#14b6cb" strokeWidth="1.5" opacity="0.4"/>
-      {/* Nodos neurales */}
-      <circle cx="32" cy="38" r="4" fill="#14b6cb"/>
-      <circle cx="68" cy="38" r="4" fill="#0f355b"/>
-      <circle cx="28" cy="55" r="3.5" fill="#0f355b"/>
-      <circle cx="72" cy="55" r="3.5" fill="#14b6cb"/>
-      <circle cx="50" cy="30" r="3" fill="#14b6cb"/>
-      <circle cx="50" cy="50" r="5" fill="url(#brainGrad)"/>
-      <circle cx="50" cy="70" r="3" fill="#0f355b"/>
-      <circle cx="38" cy="68" r="3" fill="#14b6cb" opacity="0.7"/>
-      <circle cx="62" cy="68" r="3" fill="#0f355b" opacity="0.7"/>
-      {/* Conexiones neurales animadas */}
-      <line x1="32" y1="38" x2="50" y2="50" stroke="#14b6cb" strokeWidth="1.2" opacity="0.5">
-        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
-      </line>
-      <line x1="68" y1="38" x2="50" y2="50" stroke="#0f355b" strokeWidth="1.2" opacity="0.5">
-        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
-      </line>
-      <line x1="28" y1="55" x2="50" y2="50" stroke="#14b6cb" strokeWidth="1.2" opacity="0.5">
-        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.5s" repeatCount="indefinite"/>
-      </line>
-      <line x1="72" y1="55" x2="50" y2="50" stroke="#0f355b" strokeWidth="1.2" opacity="0.5">
-        <animate attributeName="opacity" values="1;0.4;1" dur="2.5s" repeatCount="indefinite"/>
-      </line>
-      <line x1="50" y1="30" x2="50" y2="50" stroke="#14b6cb" strokeWidth="1" opacity="0.4">
-        <animate attributeName="opacity" values="0.2;0.7;0.2" dur="3s" repeatCount="indefinite"/>
-      </line>
-      <line x1="50" y1="70" x2="50" y2="50" stroke="#0f355b" strokeWidth="1" opacity="0.4">
-        <animate attributeName="opacity" values="0.7;0.2;0.7" dur="3s" repeatCount="indefinite"/>
-      </line>
-      {/* Pulso central */}
-      <circle cx="50" cy="50" r="8" fill="none" stroke="#14b6cb" strokeWidth="1" opacity="0.3">
-        <animate attributeName="r" values="5;10;5" dur="2s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite"/>
+
+      {/* Chip cuadrado redondeado */}
+      <rect x="22" y="22" width="56" height="56" rx="12" fill="url(#hChipGrad)" opacity="0.15"/>
+      <rect x="22" y="22" width="56" height="56" rx="12" stroke="url(#hChipGrad)" strokeWidth="2.5" fill="none"/>
+
+      {/* Pines del chip — arriba */}
+      <line x1="38" y1="12" x2="38" y2="22" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="50" y1="12" x2="50" y2="22" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="62" y1="12" x2="62" y2="22" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* abajo */}
+      <line x1="38" y1="78" x2="38" y2="88" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="50" y1="78" x2="50" y2="88" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="62" y1="78" x2="62" y2="88" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* izquierda */}
+      <line x1="12" y1="38" x2="22" y2="38" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="12" y1="50" x2="22" y2="50" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="12" y1="62" x2="22" y2="62" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* derecha */}
+      <line x1="78" y1="38" x2="88" y2="38" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="78" y1="50" x2="88" y2="50" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="78" y1="62" x2="88" y2="62" stroke="#14b6cb" strokeWidth="2.5" strokeLinecap="round"/>
+
+      {/* Órbita giratoria alrededor del núcleo */}
+      <g className="orbit-ring">
+        <circle cx="50" cy="50" r="16" fill="none" stroke="#14b6cb" strokeWidth="1.5" strokeDasharray="6 8" opacity="0.5"/>
+        <circle cx="50" cy="34" r="3.5" fill="#22d3ee"/>
+      </g>
+
+      {/* Núcleo central brillante */}
+      <circle cx="50" cy="50" r="8" fill="url(#hCoreGlow)" opacity="0.5">
+        <animate attributeName="r" values="6;10;6" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="50" cy="50" r="5" fill="#14b6cb"/>
+      <circle cx="50" cy="50" r="2.5" fill="#ffffff"/>
+
+      {/* Pulsos de datos viajando por los pines */}
+      <circle r="2" fill="#22d3ee">
+        <animate attributeName="cx" values="50;50" dur="1.5s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="22;12" dur="1.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="1;0" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="2" fill="#22d3ee">
+        <animate attributeName="cx" values="78;88" dur="1.8s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="50;50" dur="1.8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="1;0" dur="1.8s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="2" fill="#22d3ee">
+        <animate attributeName="cx" values="50;50" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="78;88" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="1;0" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="2" fill="#22d3ee">
+        <animate attributeName="cx" values="22;12" dur="1.6s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="50;50" dur="1.6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="1;0" dur="1.6s" repeatCount="indefinite"/>
       </circle>
     </svg>
   </IconWrapper>
