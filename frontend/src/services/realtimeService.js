@@ -1,5 +1,6 @@
 // frontend/src/services/realtimeService.js
-// OpenAI Realtime API - Servicio de conversación bidireccional por voz
+// OpenAI Realtime API GA — Servicio de conversación bidireccional por voz
+// Fase 4.2: Soporte de function calling para bloques temáticos
 import axios from 'axios';
 
 const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
@@ -15,8 +16,14 @@ export const SESSION_STATES = {
 };
 
 /**
- * RealtimeSession - Encapsula toda la lógica de WebSocket + Audio
- * para conversación bidireccional con OpenAI Realtime API
+ * RealtimeSession — OpenAI Realtime API GA
+ * Flujo: backend obtiene client_secret → frontend conecta WebSocket →
+ *        session.update con instructions+audio config+tools → response.create para auto-saludo
+ *
+ * Function Calling (bloques temáticos):
+ * Cuando el AI necesita info detallada, invoca obtener_bloque →
+ * frontend fetcha el bloque del backend → inyecta como function_call_output →
+ * AI responde con la info completa
  */
 export class RealtimeSession {
   constructor(options = {}) {
@@ -41,7 +48,20 @@ export class RealtimeSession {
     this.state = SESSION_STATES.DISCONNECTED;
     this._destroyed = false;
 
+    // Config from backend
+    this._instructions = '';
+    this._voice = 'sage';
+    this._model = 'gpt-4o-realtime-preview-2024-12-17';
+    this._tools = null;
+    this._documentId = null;
+
+    // Function call tracking — processed in response.done to avoid duplicates
+    this._pendingFunctionCalls = {};
+    this._functionCallInProgress = false; // Suppress audio during function calls
+    this._functionCallCache = {}; // Cache de bloques ya consultados (evita re-fetch en interrupciones)
+
     // Audio playback
+    this._activeAudioSources = []; // Track scheduled sources for hard stop
     this.nextPlaybackTime = 0;
   }
 
@@ -59,17 +79,38 @@ export class RealtimeSession {
         mode: this.mode
       });
 
-      if (!response.data?.success || !response.data?.client_secret) {
+      if (!response.data?.success) {
         throw new Error('No se pudo crear la sesión Realtime');
       }
 
-      const { client_secret } = response.data;
+      // Si el backend indica que realtime no está disponible, informar
+      if (!response.data.realtime_available) {
+        throw new Error('REALTIME_NOT_AVAILABLE');
+      }
 
-      // 2. Conectar WebSocket a OpenAI Realtime API
-      const wsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`;
+      const { client_secret, instructions, voice, model, tools, document_id } = response.data;
+
+      if (!client_secret) {
+        throw new Error('No se recibió client_secret del servidor');
+      }
+
+      // Guardar config para session.update
+      this._instructions = instructions || '';
+      this._voice = voice || 'sage';
+      this._model = model || 'gpt-4o-realtime-preview-2024-12-17';
+      this._tools = tools || null;
+      this._documentId = document_id || this.documentId;
+
+      // DEBUG: verificar que tools llegan del backend
+      console.log('[REALTIME DEBUG] Backend response keys:', Object.keys(response.data));
+      console.log('[REALTIME DEBUG] tools recibidos:', this._tools);
+      console.log('[REALTIME DEBUG] document_id:', this._documentId);
+
+      // 2. Conectar WebSocket a OpenAI Realtime API GA
+      const wsUrl = `wss://api.openai.com/v1/realtime?model=${this._model}`;
       this.ws = new WebSocket(wsUrl, [
         'realtime',
-        `openai-insecure-api-key.${client_secret.value || client_secret}`
+        `openai-insecure-api-key.${client_secret}`
       ]);
 
       this.ws.onopen = () => this._onWSOpen();
@@ -119,7 +160,7 @@ export class RealtimeSession {
 
   _onWSOpen() {
     console.log('Realtime WebSocket conectado');
-    this._startMicrophone();
+    // No iniciamos micrófono aún — esperamos session.created para enviar session.update
   }
 
   _onWSMessage(event) {
@@ -147,16 +188,22 @@ export class RealtimeSession {
   _handleServerEvent(event) {
     switch (event.type) {
       case 'session.created':
-        this._setState(SESSION_STATES.CONNECTED);
+        this._sendSessionUpdate();
         break;
 
       case 'session.updated':
+        console.log('[REALTIME DEBUG] session.updated recibido:', JSON.stringify(event.session?.tools || 'NO TOOLS IN RESPONSE'));
+        this._startMicrophone();
+        this._sendAutoGreeting();
         break;
 
       case 'input_audio_buffer.speech_started':
         this._setState(SESSION_STATES.LISTENING);
-        if (this.isPlaying) {
-          this.interrupt();
+        if (this.isPlaying && !this._functionCallInProgress) {
+          this._stopPlayback();
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'response.cancel' }));
+          }
         }
         break;
 
@@ -164,13 +211,29 @@ export class RealtimeSession {
         this._setState(SESSION_STATES.CONNECTED);
         break;
 
+      // GA event name for input transcription
       case 'conversation.item.input_audio_transcription.completed':
         if (event.transcript) {
           this.onTranscript(event.transcript);
+
+          // Modo grupal: solo responder si mencionan "mentoria"/"mentoría"
+          if (this.mode === 'consulta_grupo') {
+            const texto = event.transcript.toLowerCase();
+            if (texto.includes('mentoria') || texto.includes('mentoría') || texto.includes('mentor ia')) {
+              console.log('[REALTIME GRUPAL] Invocación detectada:', event.transcript);
+              if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({ type: 'response.create' }));
+              }
+            } else {
+              console.log('[REALTIME GRUPAL] Escuchando (sin invocación):', event.transcript.substring(0, 60));
+            }
+          }
         }
         break;
 
-      case 'response.audio.delta':
+      // GA: response.audio.delta → response.output_audio.delta
+      case 'response.output_audio.delta':
+      case 'response.audio.delta': // fallback for compatibility
         if (event.delta) {
           this._enqueueAudio(event.delta);
         }
@@ -179,35 +242,267 @@ export class RealtimeSession {
         }
         break;
 
-      case 'response.audio_transcript.delta':
+      // GA: response.audio_transcript.delta → response.output_audio_transcript.delta
+      case 'response.output_audio_transcript.delta':
+      case 'response.audio_transcript.delta': // fallback
         if (event.delta) {
           this.onAITranscript(event.delta, false);
         }
         break;
 
-      case 'response.audio_transcript.done':
+      // GA: response.audio_transcript.done → response.output_audio_transcript.done
+      case 'response.output_audio_transcript.done':
+      case 'response.audio_transcript.done': // fallback
         if (event.transcript) {
           this.onAITranscript(event.transcript, true);
         }
         break;
 
+      case 'response.output_audio.done':
       case 'response.audio.done':
         break;
 
-      case 'response.done':
-        if (!this.isPlaying) {
-          this._setState(SESSION_STATES.CONNECTED);
+      // === Function Calling: bloques temáticos ===
+      // Estrategia: acumular info durante el response, ejecutar en response.done
+      // para evitar duplicaciones y race conditions.
+      case 'response.function_call_arguments.delta':
+        // Acumular argumentos (solo para tracking/debug)
+        if (event.call_id) {
+          if (!this._pendingFunctionCalls[event.call_id]) {
+            this._pendingFunctionCalls[event.call_id] = { args: '' };
+          }
+          this._pendingFunctionCalls[event.call_id].args += (event.delta || '');
         }
         break;
 
+      case 'response.function_call_arguments.done':
+        // Log solamente — la ejecución real ocurre en response.done
+        if (event.call_id && event.name) {
+          console.log(`[REALTIME] Function call listo: ${event.name} (${event.call_id})`);
+        }
+        break;
+
+      // GA: output item added — detectar function_call para detener audio prematuro
+      case 'response.output_item.added':
+        if (event.item?.type === 'function_call') {
+          console.log('[REALTIME] Function call detectado, cortando audio y suprimiendo nuevos deltas');
+          // Hard-stop cualquier audio que el AI esté reproduciendo
+          this._stopPlayback();
+          // Suprimir futuros audio deltas de esta respuesta (el AI puede seguir enviando)
+          this._functionCallInProgress = true;
+        }
+        break;
+
+      case 'response.output_item.done':
+        // No procesar function calls aquí — se manejan en response.done
+        break;
+
+      case 'response.done': {
+        // Verificar si la respuesta completada contiene function calls
+        const output = event.response?.output || [];
+        const funcCalls = output.filter(item => item.type === 'function_call');
+
+        if (funcCalls.length > 0) {
+          // Procesar function calls (async, no bloquea el event loop)
+          this._processFunctionCalls(funcCalls);
+        } else {
+          if (!this.isPlaying) {
+            this._setState(SESSION_STATES.CONNECTED);
+          }
+        }
+        break;
+      }
+
       case 'error':
-        console.error('Error del servidor Realtime:', event.error);
-        this.onError(event.error?.message || 'Error del servidor');
+        console.error('[REALTIME] Error del servidor:', event.error?.type, event.error?.code, event.error?.message);
+        // No propagar errores menores al usuario (como response_cancel_not_active)
+        if (event.error?.code !== 'response_cancel_not_active' &&
+            event.error?.code !== 'conversation_already_has_active_response') {
+          this.onError(event.error?.message || 'Error del servidor');
+        }
         break;
 
       default:
+        // Log de eventos no manejados para debug
+        if (event.type && event.type.includes('function')) {
+          console.log('Evento function no manejado:', event.type, event);
+        }
         break;
     }
+  }
+
+  // ====== Session Configuration (GA) ======
+
+  _sendSessionUpdate() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    // Modo grupal: no auto-responder, mayor tolerancia a pausas
+    const isGrupal = this.mode === 'consulta_grupo';
+
+    // GA structure: session.type required, audio config nested
+    const sessionConfig = {
+      type: 'realtime',
+      instructions: this._instructions,
+      output_modalities: ['audio'],
+      audio: {
+        input: {
+          format: {
+            type: 'audio/pcm',
+            rate: 24000
+          },
+          transcription: {
+            model: 'gpt-4o-transcribe'
+          },
+          turn_detection: {
+            type: 'server_vad',
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: isGrupal ? 2000 : 500,
+            create_response: isGrupal ? false : true
+          }
+        },
+        output: {
+          format: {
+            type: 'audio/pcm',
+            rate: 24000
+          },
+          voice: this._voice
+        }
+      }
+    };
+
+    // Agregar tools si el backend los proporcionó (bloques temáticos)
+    if (this._tools && this._tools.length > 0) {
+      sessionConfig.tools = this._tools;
+      sessionConfig.tool_choice = 'auto';
+    }
+
+    const sessionUpdate = {
+      type: 'session.update',
+      session: sessionConfig
+    };
+
+    console.log('[REALTIME DEBUG] session.update payload:', JSON.stringify(sessionUpdate, null, 2));
+    this.ws.send(JSON.stringify(sessionUpdate));
+    console.log('[REALTIME DEBUG] session.update enviado', this._tools ? `con ${this._tools.length} tools` : 'SIN TOOLS');
+  }
+
+  _sendAutoGreeting() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    const greetingInstructions = this.mode === 'consulta_grupo'
+      ? 'Saluda muy brevemente, indica que estas en modo grupal escuchando la conversacion y que te invoquen por nombre cuando necesiten tu ayuda. Maximo 1 frase corta. NO uses ninguna funcion ni herramienta.'
+      : 'Saluda brevemente al estudiante y ofrece tu ayuda con el documento. NO uses ninguna funcion ni herramienta. Solo un saludo corto y amigable, maximo 2 frases.';
+
+    this.ws.send(JSON.stringify({
+      type: 'response.create',
+      response: {
+        instructions: greetingInstructions
+      }
+    }));
+    console.log('response.create enviado (auto-saludo, modo:', this.mode, ')');
+  }
+
+  // ====== Function Calling: Bloques Temáticos ======
+
+  /**
+   * Procesa todos los function calls de una respuesta completada.
+   * Se ejecuta desde response.done para evitar duplicaciones.
+   */
+  async _processFunctionCalls(funcCalls) {
+    // Detener audio residual antes de procesar
+    this._stopPlayback();
+
+    for (const fc of funcCalls) {
+      console.log(`[REALTIME] Procesando function call: ${fc.name} (${fc.call_id})`);
+      await this._handleFunctionCall(fc.call_id, fc.name, fc.arguments || '{}');
+    }
+
+    // Limpiar tracking
+    this._pendingFunctionCalls = {};
+  }
+
+  async _handleFunctionCall(callId, functionName, argsString) {
+    if (functionName !== 'obtener_bloque') {
+      this._sendFunctionCallOutput(callId, `Función ${functionName} no disponible.`);
+      return;
+    }
+
+    try {
+      const args = JSON.parse(argsString);
+      const bloqueTitulo = args.bloque_titulo || '';
+      const cacheKey = `${this._documentId}_${bloqueTitulo.toLowerCase()}`;
+
+      // Usar cache si ya consultamos este bloque (evita re-fetch en interrupciones)
+      if (this._functionCallCache[cacheKey]) {
+        console.log(`[REALTIME] Cache hit: "${bloqueTitulo}" (${this._functionCallCache[cacheKey].length} chars)`);
+        this._sendFunctionCallOutput(callId, this._functionCallCache[cacheKey]);
+        return;
+      }
+
+      console.log(`[REALTIME] Buscando bloque: "${bloqueTitulo}" para documento ${this._documentId}`);
+
+      const response = await axios.get(`${API_BASE_URL}/documento-bloques.php`, {
+        params: {
+          documento_id: this._documentId,
+          titulo: bloqueTitulo
+        }
+      });
+
+      let output;
+      if (response.data?.success && response.data?.bloque) {
+        const bloque = response.data.bloque;
+        let contenido = bloque.contenido;
+
+        // Truncar contenido largo para no exceder límites del Realtime API
+        // ~15000 chars ≈ 4000 tokens — suficiente para responder cualquier pregunta
+        const MAX_CONTENT_CHARS = 15000;
+        if (contenido.length > MAX_CONTENT_CHARS) {
+          contenido = contenido.substring(0, MAX_CONTENT_CHARS) + '\n\n[...contenido truncado por longitud. Si necesitas mas detalle de esta seccion, pide al estudiante que sea mas especifico.]';
+          console.log(`[REALTIME] Bloque truncado: ${bloque.contenido.length} → ${MAX_CONTENT_CHARS} chars`);
+        }
+
+        output = `BLOQUE: ${bloque.titulo}\n\n${contenido}`;
+        console.log(`[REALTIME] Bloque encontrado: ${bloque.titulo} (${contenido.length} chars enviados)`);
+      } else {
+        const disponibles = response.data?.bloques_disponibles || [];
+        output = `No se encontró bloque con "${bloqueTitulo}". Bloques disponibles:\n${disponibles.map(t => `- ${t}`).join('\n')}\nIntenta con uno de estos títulos.`;
+        console.warn(`[REALTIME] Bloque no encontrado: ${bloqueTitulo}. Disponibles:`, disponibles);
+      }
+
+      // Guardar en cache
+      this._functionCallCache[cacheKey] = output;
+
+      this._sendFunctionCallOutput(callId, output);
+
+    } catch (err) {
+      console.error('[REALTIME] Error obteniendo bloque:', err);
+      this._sendFunctionCallOutput(callId, `Error al consultar el bloque: ${err.message}`);
+    }
+  }
+
+  _sendFunctionCallOutput(callId, output) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    // 1. Crear item con el resultado de la función
+    this.ws.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'function_call_output',
+        call_id: callId,
+        output: output
+      }
+    }));
+
+    // 2. Pedir al AI que genere respuesta con el resultado
+    this.ws.send(JSON.stringify({
+      type: 'response.create'
+    }));
+
+    // Permitir audio de la nueva respuesta (con datos reales del bloque)
+    this._functionCallInProgress = false;
+
+    console.log(`[REALTIME] Function call output enviado, audio re-habilitado (call_id: ${callId})`);
   }
 
   // ====== Audio Input (Micrófono) ======
@@ -217,6 +512,11 @@ export class RealtimeSession {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
         sampleRate: 24000
       });
+
+      // En iOS, el AudioContext puede estar suspendido
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
 
       this.mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -342,6 +642,9 @@ export class RealtimeSession {
   // ====== Audio Output (Reproducción) ======
 
   _enqueueAudio(base64Delta) {
+    // Suppress audio if a function call is in progress
+    if (this._functionCallInProgress) return;
+
     const buffer = this._base64ToArrayBuffer(base64Delta);
     this.playbackQueue.push(buffer);
     if (!this.isPlaying) {
@@ -380,7 +683,11 @@ export class RealtimeSession {
       source.start(startTime);
       this.nextPlaybackTime = startTime + audioBuffer.duration;
 
+      // Track source for hard stop capability
+      this._activeAudioSources.push(source);
+
       source.onended = () => {
+        this._activeAudioSources = this._activeAudioSources.filter(s => s !== source);
         this._playNextChunk();
       };
     } catch (err) {
@@ -393,6 +700,12 @@ export class RealtimeSession {
     this.playbackQueue = [];
     this.isPlaying = false;
     this.nextPlaybackTime = 0;
+
+    // Hard-stop any scheduled/playing audio sources
+    for (const source of this._activeAudioSources) {
+      try { source.stop(); } catch (e) { /* already stopped */ }
+    }
+    this._activeAudioSources = [];
   }
 
   // ====== Helpers ======

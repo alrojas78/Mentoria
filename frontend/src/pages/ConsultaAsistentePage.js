@@ -130,6 +130,7 @@ const {
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+  const [showConsultaSubmodes, setShowConsultaSubmodes] = useState(false);
   const [firstInteraction, setFirstInteraction] = useState(false);
   const [lastProcessedTranscript, setLastProcessedTranscript] = useState('');
   const [manualInput, setManualInput] = useState('');
@@ -432,6 +433,8 @@ if (responseLower.includes('modo evaluación') &&
         return { label: '📝 Modo Evaluación', color: '#F59E0B', description: 'Evaluación de conocimientos' };
       case 'reto':
         return { label: '🎯 Modo Reto', color: '#8B5CF6', description: 'Reto semanal' };
+      case 'consulta_grupo':
+        return { label: '👥 Modo Grupal', color: '#8B5CF6', description: 'Espectador en reunión grupal' };
       default:
         return { label: '💬 Modo Consulta', color: 'var(--color-primary-light)', description: 'Consultas libres' };
     }
@@ -1128,8 +1131,8 @@ const startFirstInteraction = useCallback(async (selectedMode = 'consulta') => {
       // PASO 1: Establecer el modo INMEDIATAMENTE
       setCurrentMode(selectedMode);
 
-      // PASO 1.5: Solo modo consulta usa Realtime (mentor/evaluación/reto mantienen flujo tradicional)
-      if (isRealtimeSupported() && selectedMode === 'consulta') {
+      // PASO 1.5: Modos consulta y consulta_grupo usan Realtime (mentor/evaluación/reto mantienen flujo tradicional)
+      if (isRealtimeSupported() && (selectedMode === 'consulta' || selectedMode === 'consulta_grupo')) {
         console.log('Iniciando modo Realtime para:', selectedMode);
         connectRealtime(selectedMode);
         return; // No ejecutar flujo texto
@@ -1657,10 +1660,11 @@ const handleCloseVideo = (lastTime, duration) => {
       }
     };
     const getStateLabel = () => {
+      const isGrupal = currentMode === 'consulta_grupo';
       switch (realtimeState) {
         case SESSION_STATES.CONNECTING: return 'Conectando...';
-        case SESSION_STATES.CONNECTED: return 'Listo — habla para comenzar';
-        case SESSION_STATES.LISTENING: return 'Escuchando...';
+        case SESSION_STATES.CONNECTED: return isGrupal ? 'Escuchando grupo — di "MentorIA" para preguntar' : 'Listo — habla para comenzar';
+        case SESSION_STATES.LISTENING: return isGrupal ? 'Escuchando grupo...' : 'Escuchando...';
         case SESSION_STATES.AI_SPEAKING: return 'MentorIA respondiendo...';
         case SESSION_STATES.ERROR: return 'Error de conexión';
         default: return 'Desconectado';
@@ -1686,14 +1690,20 @@ const handleCloseVideo = (lastTime, duration) => {
               {isRealtimeConnected ? '\u2715' : '\u2190'}
             </button>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>MentorIA Realtime</h3>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{currentMode === 'consulta_grupo' ? 'MentorIA Grupal' : 'MentorIA Realtime'}</h3>
               {documentInfo && <p style={{ margin: 0, fontSize: '0.7rem', color: '#94A3B8' }}>{documentInfo.titulo}</p>}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {isRealtimeConnected && <span style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{formatDuration(realtimeSessionDuration)}</span>}
-            <button onClick={handleRealtimeFallbackToText} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '16px', padding: '6px 14px', color: '#94A3B8', fontSize: '0.8rem', cursor: 'pointer' }}>
-              Modo Texto
+            <button
+              onClick={handleRealtimeFallbackToText}
+              style={{ background: 'linear-gradient(135deg, rgba(30,41,59,0.9) 0%, rgba(51,65,85,0.9) 100%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '20px', padding: '7px 16px', color: '#CBD5E1', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s ease', backdropFilter: 'blur(8px)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(51,65,85,0.95) 0%, rgba(71,85,105,0.95) 100%)'; e.currentTarget.style.color = '#F1F5F9'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, rgba(30,41,59,0.9) 0%, rgba(51,65,85,0.9) 100%)'; e.currentTarget.style.color = '#CBD5E1'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>
+              Texto
             </button>
           </div>
         </header>
@@ -1722,6 +1732,11 @@ const handleCloseVideo = (lastTime, duration) => {
               {realtimeState === SESSION_STATES.ERROR && <span style={{ fontSize: '2.5rem' }}>&#9888;</span>}
             </div>
             <p style={{ marginTop: '1rem', color: getStateColor(), fontSize: '1rem', fontWeight: 500 }}>{getStateLabel()}</p>
+            {currentMode === 'consulta_grupo' && (
+              <span style={{ display: 'inline-block', marginTop: '0.5rem', padding: '4px 14px', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.4)', color: '#A78BFA', fontSize: '0.8rem', fontWeight: 500 }}>
+                👥 Modo Grupal — Espectador
+              </span>
+            )}
           </div>
 
           {/* Botones de acción */}
@@ -1751,35 +1766,65 @@ const handleCloseVideo = (lastTime, duration) => {
 
         {/* Panel de transcripción */}
         {showRealtimeTranscript && (realtimeUserTranscripts.length > 0 || realtimeAiTranscripts.length > 0 || realtimeAiTranscript) && (
-          <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '12px 20px', background: 'rgba(30, 41, 59, 0.8)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600 }}>Transcripcion</span>
-              <button onClick={() => setShowRealtimeTranscript(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.8rem' }}>Ocultar</button>
+          <div style={{ maxHeight: '240px', overflowY: 'auto', padding: '0', background: 'linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.95) 100%)', borderTop: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}>
+            <div style={{ position: 'sticky', top: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px 8px', background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(15,23,42,0.85) 100%)', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Transcripción</span>
+              </div>
+              <button onClick={() => setShowRealtimeTranscript(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 10px', color: '#64748B', cursor: 'pointer', fontSize: '0.7rem', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#94A3B8'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#64748B'; }}
+              >Ocultar</button>
             </div>
-            {(() => {
-              // Intercalar transcripciones de usuario y AI
-              const allTranscripts = [];
-              const maxLen = Math.max(realtimeUserTranscripts.length, realtimeAiTranscripts.length);
-              for (let i = 0; i < maxLen; i++) {
-                if (i < realtimeUserTranscripts.length) allTranscripts.push({ type: 'user', text: realtimeUserTranscripts[i], idx: i });
-                if (i < realtimeAiTranscripts.length) allTranscripts.push({ type: 'ai', text: realtimeAiTranscripts[i], idx: i });
-              }
-              return allTranscripts.map((t, i) => (
-                <p key={`${t.type}-${t.idx}`} style={{ margin: '4px 0', fontSize: '0.85rem', color: t.type === 'user' ? '#22D3EE' : '#94A3B8' }}>
-                  <strong>{t.type === 'user' ? 'Tu:' : 'MentorIA:'}</strong> {t.text}
-                </p>
-              ));
-            })()}
-            {realtimeAiTranscript && (
-              <p style={{ margin: '4px 0', fontSize: '0.85rem', color: '#94A3B8', fontStyle: 'italic' }}>
-                <strong>MentorIA:</strong> {realtimeAiTranscript}...
-              </p>
-            )}
+            <div style={{ padding: '4px 20px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {(() => {
+                const allTranscripts = [];
+                const maxLen = Math.max(realtimeUserTranscripts.length, realtimeAiTranscripts.length);
+                for (let i = 0; i < maxLen; i++) {
+                  if (i < realtimeUserTranscripts.length) allTranscripts.push({ type: 'user', text: realtimeUserTranscripts[i], idx: i });
+                  if (i < realtimeAiTranscripts.length) allTranscripts.push({ type: 'ai', text: realtimeAiTranscripts[i], idx: i });
+                }
+                return allTranscripts.map((t, i) => (
+                  <div key={`${t.type}-${t.idx}`} style={{ display: 'flex', justifyContent: t.type === 'user' ? 'flex-end' : 'flex-start' }}>
+                    <div style={{
+                      maxWidth: '80%',
+                      padding: '8px 14px',
+                      borderRadius: t.type === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                      background: t.type === 'user' ? 'linear-gradient(135deg, #0E7490 0%, #0891B2 100%)' : 'rgba(255,255,255,0.06)',
+                      border: t.type === 'user' ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                      fontSize: '0.82rem',
+                      lineHeight: '1.4',
+                      color: t.type === 'user' ? '#E0F2FE' : '#CBD5E1'
+                    }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: t.type === 'user' ? 'rgba(224,242,254,0.6)' : 'rgba(148,163,184,0.7)', display: 'block', marginBottom: '2px' }}>
+                        {t.type === 'user' ? 'Tú' : 'MentorIA'}
+                      </span>
+                      {t.text}
+                    </div>
+                  </div>
+                ));
+              })()}
+              {realtimeAiTranscript && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ maxWidth: '80%', padding: '8px 14px', borderRadius: '14px 14px 14px 4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)', fontSize: '0.82rem', lineHeight: '1.4', color: '#94A3B8', fontStyle: 'italic' }}>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(148,163,184,0.7)', display: 'block', marginBottom: '2px' }}>MentorIA</span>
+                    {realtimeAiTranscript}<span style={{ animation: 'rtBlink 1s infinite' }}>...</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
         {!showRealtimeTranscript && (realtimeUserTranscripts.length > 0 || realtimeAiTranscripts.length > 0) && (
-          <button onClick={() => setShowRealtimeTranscript(true)} style={{ position: 'fixed', bottom: '20px', right: '20px', background: 'rgba(30, 41, 59, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '8px 16px', color: '#94A3B8', fontSize: '0.8rem', cursor: 'pointer' }}>
-            Mostrar transcripcion
+          <button
+            onClick={() => setShowRealtimeTranscript(true)}
+            style={{ position: 'fixed', bottom: '24px', right: '24px', background: 'linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(51,65,85,0.95) 100%)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', padding: '10px 18px', color: '#94A3B8', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(12px)', boxShadow: '0 4px 20px rgba(0,0,0,0.4)', transition: 'all 0.2s ease' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)'; e.currentTarget.style.color = '#22D3EE'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(8,145,178,0.2)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.4)'; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Transcripción
           </button>
         )}
 
@@ -1791,6 +1836,10 @@ const handleCloseVideo = (lastTime, duration) => {
           @keyframes rtSoundWave {
             0%, 100% { transform: scaleY(0.3); }
             50% { transform: scaleY(1); }
+          }
+          @keyframes rtBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
           }
         `}</style>
       </div>
@@ -1868,20 +1917,22 @@ const handleCloseVideo = (lastTime, duration) => {
     gap: '10px',
     padding: '8px 20px',
     borderRadius: '20px',
-    background: currentMode === 'consulta' ? 'rgba(8, 145, 178, 0.15)' : 
-                currentMode === 'mentor' ? 'rgba(16, 185, 129, 0.15)' : 
+    background: currentMode === 'consulta' ? 'rgba(8, 145, 178, 0.15)' :
+                currentMode === 'consulta_grupo' ? 'rgba(139, 92, 246, 0.15)' :
+                currentMode === 'mentor' ? 'rgba(16, 185, 129, 0.15)' :
                 'rgba(245, 158, 11, 0.15)',
-    border: currentMode === 'consulta' ? '1px solid rgba(34, 211, 238, 0.3)' : 
-            currentMode === 'mentor' ? '1px solid rgba(52, 211, 153, 0.3)' : 
+    border: currentMode === 'consulta' ? '1px solid rgba(34, 211, 238, 0.3)' :
+            currentMode === 'consulta_grupo' ? '1px solid rgba(139, 92, 246, 0.3)' :
+            currentMode === 'mentor' ? '1px solid rgba(52, 211, 153, 0.3)' :
             '1px solid rgba(251, 191, 36, 0.3)',
     animation: 'slideUp 0.5s ease-out'
   }}>
     <span style={{ fontSize: '1.3rem' }}>
-      {currentMode === 'consulta' ? '💬' : currentMode === 'mentor' ? '👨‍🏫' : '📝'}
+      {currentMode === 'consulta' ? '💬' : currentMode === 'consulta_grupo' ? '👥' : currentMode === 'mentor' ? '👨‍🏫' : '📝'}
     </span>
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-      <span style={{ 
-        fontSize: '0.75rem', 
+      <span style={{
+        fontSize: '0.75rem',
         color: 'var(--color-text-secondary)',
         fontWeight: '500',
         textTransform: 'uppercase',
@@ -1889,15 +1940,17 @@ const handleCloseVideo = (lastTime, duration) => {
       }}>
         Modo Activo
       </span>
-      <span style={{ 
-        fontSize: '0.95rem', 
+      <span style={{
+        fontSize: '0.95rem',
         fontWeight: '700',
-        color: currentMode === 'consulta' ? '#22D3EE' : 
-               currentMode === 'mentor' ? '#34D399' : 
+        color: currentMode === 'consulta' ? '#22D3EE' :
+               currentMode === 'consulta_grupo' ? '#A78BFA' :
+               currentMode === 'mentor' ? '#34D399' :
                '#FBBF24'
       }}>
-        {currentMode === 'consulta' ? 'Consulta' : 
-         currentMode === 'mentor' ? 'Mentor' : 
+        {currentMode === 'consulta' ? 'Consulta' :
+         currentMode === 'consulta_grupo' ? 'Grupal' :
+         currentMode === 'mentor' ? 'Mentor' :
          'Evaluación'}
       </span>
     </div>
@@ -1905,11 +1958,13 @@ const handleCloseVideo = (lastTime, duration) => {
       width: '8px', 
       height: '8px', 
       borderRadius: '50%', 
-      background: currentMode === 'consulta' ? '#22D3EE' : 
-                  currentMode === 'mentor' ? '#34D399' : 
+      background: currentMode === 'consulta' ? '#22D3EE' :
+                  currentMode === 'consulta_grupo' ? '#A78BFA' :
+                  currentMode === 'mentor' ? '#34D399' :
                   '#FBBF24',
-      boxShadow: currentMode === 'consulta' ? '0 0 10px #22D3EE' : 
-                 currentMode === 'mentor' ? '0 0 10px #34D399' : 
+      boxShadow: currentMode === 'consulta' ? '0 0 10px #22D3EE' :
+                 currentMode === 'consulta_grupo' ? '0 0 10px #A78BFA' :
+                 currentMode === 'mentor' ? '0 0 10px #34D399' :
                  '0 0 10px #FBBF24',
       animation: 'pulse 2s ease-in-out infinite'
     }}></span>
@@ -1948,6 +2003,7 @@ const handleCloseVideo = (lastTime, duration) => {
     </button>
     
     {/* Botón Modo Mentor - CORREGIDO */}
+    {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
     <button
       onClick={() => handleModeChange('mentor')}
       disabled={isWaitingForResponse || isSpeaking}
@@ -1973,8 +2029,10 @@ const handleCloseVideo = (lastTime, duration) => {
       <span style={{ fontSize: '1rem' }}>👨‍🏫</span>
       <span>Mentor</span>
     </button>
-    
+    )}
+
     {/* Botón Modo Evaluación */}
+    {documentInfo?.modo_evaluacion !== 0 && parseInt(documentInfo?.modo_evaluacion) !== 0 && (
     <button
       onClick={() => handleModeChange('evaluacion')}
       disabled={isWaitingForResponse || isSpeaking}
@@ -2000,6 +2058,7 @@ const handleCloseVideo = (lastTime, duration) => {
       <span style={{ fontSize: '1rem' }}>📝</span>
       <span>Evaluación</span>
     </button>
+    )}
   </div> 
 
   {/* BOTÓN DE MODOS PARA MÓVIL */}
@@ -2067,6 +2126,7 @@ Modos ▾
     </button>
 
     {/* Botón Modo Mentor */}
+    {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
     <button
       onClick={() => {
         handleModeChange('mentor');
@@ -2078,8 +2138,8 @@ Modos ▾
         padding: '12px 16px',
         borderRadius: '8px',
         border: 'none',
-        background: currentMode === 'mentor' 
-          ? 'linear-gradient(135deg, #10B981 0%, #34D399 100%)' 
+        background: currentMode === 'mentor'
+          ? 'linear-gradient(135deg, #10B981 0%, #34D399 100%)'
           : 'transparent',
         color: 'white',
         fontSize: '0.9rem',
@@ -2100,8 +2160,10 @@ Modos ▾
         <span style={{ marginLeft: 'auto', fontSize: '1rem' }}>✓</span>
       )}
     </button>
+    )}
 
     {/* Botón Modo Evaluación */}
+    {documentInfo?.modo_evaluacion !== 0 && parseInt(documentInfo?.modo_evaluacion) !== 0 && (
     <button
       onClick={() => {
         handleModeChange('evaluacion');
@@ -2134,6 +2196,7 @@ Modos ▾
         <span style={{ marginLeft: 'auto', fontSize: '1rem' }}>✓</span>
       )}
     </button>
+    )}
   </div>
 )}
 
@@ -2288,21 +2351,56 @@ Modos ▾
       <p>Selecciona cómo deseas comenzar tu sesión de aprendizaje:</p>
       
       <div className="mode-selection-container">
-        
-        {/* Botón Modo Consulta */}
-        <button 
-          className="mode-button consulta"
-          onClick={() => startFirstInteraction('consulta')}
-        >
-          <div className="mode-button-icon">💬</div>
-          <div className="mode-button-content">
-            <h3>Modo Consulta</h3>
-            <p>Haz preguntas libres sobre el contenido. Ideal para resolver dudas específicas.</p>
-          </div>
-        </button>
+
+        {/* Botón Modo Consulta con sub-opciones */}
+        {documentInfo?.modo_consulta !== 0 && parseInt(documentInfo?.modo_consulta) !== 0 && (
+          showConsultaSubmodes ? (
+            <>
+              <button
+                className="mode-button consulta"
+                onClick={() => startFirstInteraction('consulta')}
+              >
+                <div className="mode-button-icon">🧑</div>
+                <div className="mode-button-content">
+                  <h3>Conversación 1 a 1</h3>
+                  <p>Habla directamente con MentorIA. Ideal para resolver dudas específicas.</p>
+                </div>
+              </button>
+              <button
+                className="mode-button consulta"
+                onClick={() => startFirstInteraction('consulta_grupo')}
+                style={{ borderColor: '#8B5CF6' }}
+              >
+                <div className="mode-button-icon">👥</div>
+                <div className="mode-button-content">
+                  <h3>Modo Grupal</h3>
+                  <p>MentorIA escucha la reunión y solo responde cuando la invocan por nombre.</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setShowConsultaSubmodes(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '0.8rem', cursor: 'pointer', padding: '4px 0', textAlign: 'center' }}
+              >
+                ← Volver
+              </button>
+            </>
+          ) : (
+            <button
+              className="mode-button consulta"
+              onClick={() => setShowConsultaSubmodes(true)}
+            >
+              <div className="mode-button-icon">💬</div>
+              <div className="mode-button-content">
+                <h3>Modo Consulta</h3>
+                <p>Haz preguntas libres sobre el contenido. Ideal para resolver dudas específicas.</p>
+              </div>
+            </button>
+          )
+        )}
 
         {/* Botón Modo Mentor */}
-        <button 
+        {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
+        <button
           className="mode-button mentor"
           onClick={() => startFirstInteraction('mentor')}
         >
@@ -2312,8 +2410,10 @@ Modos ▾
             <p>Aprendizaje guiado paso a paso siguiendo un programa estructurado.</p>
           </div>
         </button>
+        )}
 
         {/* Botón Modo Evaluación */}
+        {documentInfo?.modo_evaluacion !== 0 && parseInt(documentInfo?.modo_evaluacion) !== 0 && (
         <button
           className="mode-button evaluacion"
           onClick={() => startFirstInteraction('evaluacion')}
@@ -2324,8 +2424,10 @@ Modos ▾
             <p>Pon a prueba tus conocimientos con preguntas sobre el material.</p>
           </div>
         </button>
+        )}
 
         {/* Botón Modo Reto */}
+        {documentInfo?.modo_reto !== 0 && parseInt(documentInfo?.modo_reto) !== 0 && (
         <button
           className={`mode-button reto ${!retoState.tieneRetoPendiente ? 'disabled' : ''}`}
           onClick={() => retoState.tieneRetoPendiente && startFirstInteraction('reto')}
@@ -2350,6 +2452,7 @@ Modos ▾
             </div>
           )}
         </button>
+        )}
 
       </div>
 

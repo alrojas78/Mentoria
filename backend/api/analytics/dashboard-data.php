@@ -227,18 +227,43 @@ function getDocumentMetrics($db, $document_id) {
 }
 
 /**
- * Obtener actividad de usuarios (datos simulados por ahora)
+ * Obtener actividad de usuarios (datos reales)
  */
 function getUserActivity($db, $document_id, $period) {
     try {
-        return [
-            [
-                "fecha" => date('Y-m-d'),
-                "usuarios_activos" => 1,
-                "sesiones" => 7,
-                "preguntas" => 25
-            ]
-        ];
+        $days = 30;
+        if ($period === '7d') $days = 7;
+        elseif ($period === '90d') $days = 90;
+        elseif ($period === '365d') $days = 365;
+
+        $query = "
+            SELECT
+                DATE(dcs.started_at) as fecha,
+                COUNT(DISTINCT dcs.user_id) as usuarios_activos,
+                COUNT(DISTINCT dcs.id) as sesiones,
+                COALESCE(SUM(CASE WHEN dcm.tipo = 'pregunta_usuario' THEN 1 ELSE 0 END), 0) as preguntas
+            FROM doc_conversacion_sesiones dcs
+            LEFT JOIN doc_conversacion_mensajes dcm ON dcm.session_id = dcs.id
+            WHERE dcs.document_id = :document_id
+            AND dcs.started_at >= DATE_SUB(NOW(), INTERVAL $days DAY)
+            GROUP BY DATE(dcs.started_at)
+            ORDER BY fecha ASC
+        ";
+
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':document_id', $document_id);
+        $stmt->execute();
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return array_map(function($row) {
+            return [
+                "fecha" => $row['fecha'],
+                "usuarios_activos" => (int)$row['usuarios_activos'],
+                "sesiones" => (int)$row['sesiones'],
+                "preguntas" => (int)$row['preguntas']
+            ];
+        }, $results);
+
     } catch (Exception $e) {
         return [
             "error" => true,
@@ -248,18 +273,43 @@ function getUserActivity($db, $document_id, $period) {
 }
 
 /**
- * Obtener ranking de preguntas (datos simulados por ahora)
+ * Obtener ranking de preguntas (datos reales)
  */
 function getQuestionRanking($db, $document_id, $limit) {
     try {
-        return [
-            [
-                "pregunta" => "¿Qué es Ateneo?",
-                "frecuencia" => 8,
-                "primera_vez" => "2024-01-15",
-                "ultima_vez" => "2024-06-20"
-            ]
-        ];
+        $query = "
+            SELECT
+                dcm.contenido as pregunta,
+                COUNT(*) as frecuencia,
+                MIN(dcm.timestamp) as primera_vez,
+                MAX(dcm.timestamp) as ultima_vez,
+                COUNT(DISTINCT dcs.user_id) as usuarios_diferentes
+            FROM doc_conversacion_mensajes dcm
+            INNER JOIN doc_conversacion_sesiones dcs ON dcm.session_id = dcs.id
+            WHERE dcs.document_id = :document_id
+            AND dcm.tipo = 'pregunta_usuario'
+            AND CHAR_LENGTH(dcm.contenido) >= 10
+            GROUP BY dcm.contenido
+            ORDER BY frecuencia DESC, usuarios_diferentes DESC
+            LIMIT :limit
+        ";
+
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':document_id', $document_id);
+        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return array_map(function($row) {
+            return [
+                "pregunta" => trim($row['pregunta']),
+                "frecuencia" => (int)$row['frecuencia'],
+                "primera_vez" => $row['primera_vez'],
+                "ultima_vez" => $row['ultima_vez'],
+                "usuarios_diferentes" => (int)$row['usuarios_diferentes']
+            ];
+        }, $results);
+
     } catch (Exception $e) {
         return [
             "error" => true,
@@ -273,17 +323,25 @@ function getQuestionRanking($db, $document_id, $limit) {
  */
 function getMentorProgress($db, $document_id) {
     try {
-        $query = "SELECT COUNT(*) as total FROM doc_mentor_progreso WHERE document_id = :document_id";
+        $query = "
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END) as completados,
+                SUM(CASE WHEN estado = 'en_progreso' THEN 1 ELSE 0 END) as en_progreso,
+                SUM(CASE WHEN estado = 'iniciado' THEN 1 ELSE 0 END) as iniciados
+            FROM doc_mentor_progreso
+            WHERE document_id = :document_id
+        ";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':document_id', $document_id);
         $stmt->execute();
-        $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
-        
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
         return [
             [
-                "total_usuarios" => $total,
-                "en_progreso" => $total,
-                "completados" => 0
+                "total_usuarios" => (int)($row['total'] ?? 0),
+                "en_progreso" => (int)($row['en_progreso'] ?? 0) + (int)($row['iniciados'] ?? 0),
+                "completados" => (int)($row['completados'] ?? 0)
             ]
         ];
     } catch (Exception $e) {
@@ -299,19 +357,27 @@ function getMentorProgress($db, $document_id) {
  */
 function getEvaluationResults($db, $document_id) {
     try {
-        $query = "SELECT COUNT(*) as total FROM doc_evaluacion_resultados WHERE document_id = :document_id";
+        $query = "
+            SELECT
+                COUNT(*) as total_evaluaciones,
+                SUM(CASE WHEN aprobado = 1 THEN 1 ELSE 0 END) as aprobados,
+                SUM(CASE WHEN aprobado = 0 THEN 1 ELSE 0 END) as reprobados,
+                COALESCE(AVG(porcentaje_obtenido), 0) as promedio
+            FROM doc_evaluacion_resultados
+            WHERE document_id = :document_id
+        ";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':document_id', $document_id);
         $stmt->execute();
-        $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
-        
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
         return [
             [
                 "fecha" => date('Y-m-d'),
-                "total_evaluaciones" => $total,
-                "aprobados" => 0,
-                "reprobados" => 0,
-                "promedio" => 0
+                "total_evaluaciones" => (int)($row['total_evaluaciones'] ?? 0),
+                "aprobados" => (int)($row['aprobados'] ?? 0),
+                "reprobados" => (int)($row['reprobados'] ?? 0),
+                "promedio" => round((float)($row['promedio'] ?? 0), 2)
             ]
         ];
     } catch (Exception $e) {

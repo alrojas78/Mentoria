@@ -104,7 +104,6 @@ function getQuestionRanking($db, $document_id, $limit, $mode) {
             AND CHAR_LENGTH(dcm.contenido) >= 10
             $modeFilter
             GROUP BY dcm.contenido, dcm.modo_activo
-            HAVING frecuencia >= 2
             ORDER BY frecuencia DESC, usuarios_diferentes DESC
             LIMIT :limit
         ";

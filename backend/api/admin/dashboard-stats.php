@@ -1,82 +1,55 @@
 <?php
-// backend/api/admin/dashboard-stats.php
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET");
-header("Access-Control-Max-Age: 3600");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-// Incluir archivos necesarios
-include_once '../../config/config.php';
-include_once '../../config/db.php';
-include_once '../../utils/jwt.php';
+if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") { http_response_code(200); exit; }
 
-// Verificar autenticación y rol de administrador
-$headers = getallheaders();
-$token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : '';
+require_once "../../config/config.php";
+require_once "../../config/db.php";
+require_once "../../middleware/AuthMiddleware.php";
 
-$jwt = new JWTUtil();
-$userData = $jwt->validate($token);
-
-if (!$userData || $userData->role !== 'admin') {
-    http_response_code(401);
-    echo json_encode(["message" => "No autorizado"]);
-    exit();
-}
-
-// Crear conexión a la base de datos
+$userData = AuthMiddleware::requireAdmin();
 $database = new Database();
 $db = $database->getConnection();
 
+$stmt = $db->query("SELECT COUNT(*) as total FROM users");
+$totalUsers = $stmt->fetch(PDO::FETCH_ASSOC)["total"];
+
+$activeUsers = 0;
 try {
-    // Obtener estadísticas generales
-    $response = [
-        'totalUsers' => 0,
-        'totalCourses' => 0,
-        'totalLessons' => 0,
-        'activeUsers' => 0,
-        'completedCourses' => 0
-    ];
-    
-    // Total de usuarios
-    $stmt = $db->prepare("SELECT COUNT(*) as total FROM users");
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $response['totalUsers'] = (int)$row['total'];
-    
-    // Total de cursos
-    $stmt = $db->prepare("SELECT COUNT(*) as total FROM courses");
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $response['totalCourses'] = (int)$row['total'];
-    
-    // Total de lecciones
-    $stmt = $db->prepare("SELECT COUNT(*) as total FROM lessons");
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $response['totalLessons'] = (int)$row['total'];
-    
-    // Usuarios activos (con alguna actividad en los últimos 30 días)
-    $stmt = $db->prepare("
-        SELECT COUNT(DISTINCT user_id) as total 
-        FROM user_progress 
-        WHERE fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ");
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $response['activeUsers'] = (int)$row['total'];
-    
-    // Cursos completados
-    $stmt = $db->prepare("SELECT COUNT(*) as total FROM completed_courses");
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $response['completedCourses'] = (int)$row['total'];
-    
-    // Responder con los datos
-    http_response_code(200);
-    echo json_encode($response);
-    
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(["message" => "Error al obtener estadísticas", "error" => $e->getMessage()]);
-}
+    $tableCheck = $db->query("SHOW TABLES LIKE 'realtime_sessions'");
+    if ($tableCheck->rowCount() > 0) {
+        $stmt = $db->query("SELECT COUNT(DISTINCT user_id) as active FROM realtime_sessions WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        $activeUsers = $stmt->fetch(PDO::FETCH_ASSOC)["active"];
+    }
+} catch (Exception $e) {}
+
+$activeRate = $totalUsers > 0 ? round(($activeUsers / $totalUsers) * 100, 1) : 0;
+
+$stmt = $db->query("SELECT role, COUNT(*) as count FROM users GROUP BY role ORDER BY count DESC");
+$roleDistribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$registrationTrend = [];
+try {
+    $stmt = $db->query("SELECT DATE(created) as date, COUNT(*) as count FROM users WHERE created >= DATE_SUB(NOW(), INTERVAL 30 DAY) GROUP BY DATE(created) ORDER BY date ASC");
+    $registrationTrend = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {}
+
+$totalDocuments = 0;
+try {
+    $stmt = $db->query("SELECT COUNT(*) as total FROM documentos");
+    $totalDocuments = $stmt->fetch(PDO::FETCH_ASSOC)["total"];
+} catch (Exception $e) {}
+
+echo json_encode([
+    "success" => true,
+    "total_users" => (int)$totalUsers,
+    "active_users" => (int)$activeUsers,
+    "active_rate" => $activeRate,
+    "total_documents" => (int)$totalDocuments,
+    "role_distribution" => $roleDistribution,
+    "registration_trend" => $registrationTrend
+]);
+?>

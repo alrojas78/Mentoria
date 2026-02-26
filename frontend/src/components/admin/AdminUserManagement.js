@@ -1,8 +1,19 @@
 // src/components/admin/AdminUserManagement.js
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 import { userService } from '../../services/api';
 import { FaEdit, FaTrash, FaPlus, FaUserShield, FaUser, FaSearch, FaFileExport, FaFilter, FaChalkboardTeacher } from 'react-icons/fa';
+
+const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
+
+const ROLE_COLORS = {
+  admin: { bg: '#e3f2fd', color: '#0d47a1' },
+  mentor: { bg: '#fff3e0', color: '#e65100' },
+  vozama: { bg: '#f3e5f5', color: '#6a1b9a' },
+};
+const DEFAULT_ROLE_COLOR = { bg: '#f1f8e9', color: '#33691e' };
+const ucfirst = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
 const Container = styled.div`
   background-color: white;
@@ -127,8 +138,8 @@ const RoleLabel = styled.span`
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
-  background-color: ${props => props.role === 'admin' ? '#e3f2fd' : '#f1f8e9'};
-  color: ${props => props.role === 'admin' ? '#0d47a1' : '#33691e'};
+  background-color: ${props => (ROLE_COLORS[props.role] || DEFAULT_ROLE_COLOR).bg};
+  color: ${props => (ROLE_COLORS[props.role] || DEFAULT_ROLE_COLOR).color};
 `;
 
 const Pagination = styled.div`
@@ -264,6 +275,8 @@ const AdminUserManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  const [availableRoles, setAvailableRoles] = useState([]);
+
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -271,9 +284,19 @@ const AdminUserManagement = () => {
     role: 'user'
   });
 
-  
-  
   const [formErrors, setFormErrors] = useState({});
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/roles.php`);
+        setAvailableRoles(res.data.roles || []);
+      } catch (error) {
+        console.error('Error cargando roles:', error);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -490,13 +513,14 @@ const AdminUserManagement = () => {
         </SearchInput>
         
         <FilterContainer>
-          <select 
+          <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
           >
             <option value="">Todos los roles</option>
-            <option value="admin">Administradores</option>
-            <option value="user">Usuarios</option>
+            {availableRoles.map(r => (
+              <option key={r.name} value={r.name}>{r.label}</option>
+            ))}
           </select>
         </FilterContainer>
       </SearchContainer>
@@ -529,22 +553,8 @@ const AdminUserManagement = () => {
                     <td>{user.email}</td>
                     <td>
                       <RoleLabel role={user.role}>
-                        {user.role === 'admin' ? (
-  <>
-    <FaUserShield />
-    Administrador
-  </>
-) : user.role === 'mentor' ? (
-  <>
-    <FaChalkboardTeacher />
-    Mentor
-  </>
-) : (
-  <>
-    <FaUser />
-    Usuario
-  </>
-                        )}
+                        {user.role === 'admin' ? <FaUserShield /> : user.role === 'mentor' ? <FaChalkboardTeacher /> : <FaUser />}
+                        {(availableRoles.find(r => r.name === user.role) || {}).label || ucfirst(user.role)}
                       </RoleLabel>
                     </td>
                     <td>{new Date(user.created).toLocaleDateString()}</td>
@@ -679,10 +689,10 @@ const AdminUserManagement = () => {
                   value={formData.role}
                   onChange={handleInputChange}
                 >
-                  <option value="user">Usuario</option>
-                  <option value="mentor">Mentor</option>
-                  <option value="admin">Administrador</option>
-                                  </select>
+                  {availableRoles.map(r => (
+                    <option key={r.name} value={r.name}>{r.label}</option>
+                  ))}
+                </select>
               </FormGroup>
               
               <ModalFooter>

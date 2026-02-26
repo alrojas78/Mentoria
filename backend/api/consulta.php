@@ -857,13 +857,12 @@ function crearEstructuraConVideos($db, $userId, $documentId, $videosPrograma, $d
     }
     
     // Guardar estructura
-    // ✅ CORREGIDO: No sobrescribir el estado si ya está 'completado'
+    // FIX: Solo actualizar estructura_contenido, NUNCA resetear estado/posicion
     $stmt = $db->prepare("
         INSERT INTO doc_mentor_progreso (user_id, document_id, estructura_contenido, estado)
         VALUES (?, ?, ?, 'iniciado')
-        ON DUPLICATE KEY UPDATE 
-        estructura_contenido = VALUES(estructura_contenido),
-        estado = IF(estado = 'completado', 'completado', 'iniciado')
+        ON DUPLICATE KEY UPDATE
+        estructura_contenido = VALUES(estructura_contenido)
     ");
     $stmt->execute([$userId, $documentId, json_encode($estructura)]);
     
@@ -967,15 +966,12 @@ IMPORTANTE: Crea un programa coherente con el contenido real, no inventes inform
             
             if ($estructura) {
                 // Guardar en base de datos
-                // ✅ CORREGIDO: No sobrescribir el estado si ya está 'completado'
+                // FIX: Solo actualizar estructura_contenido, NUNCA resetear estado/posicion
                 $stmt = $db->prepare("
                     INSERT INTO doc_mentor_progreso (user_id, document_id, estructura_contenido, estado)
                     VALUES (?, ?, ?, 'iniciado')
-                    ON DUPLICATE KEY UPDATE 
-                    estructura_contenido = VALUES(estructura_contenido),
-                    estado = IF(estado = 'completado', 'completado', 'iniciado'),
-                    leccion_actual = IF(estado = 'completado', leccion_actual, 1),
-                    modulo_actual = IF(estado = 'completado', modulo_actual, 1)
+                    ON DUPLICATE KEY UPDATE
+                    estructura_contenido = VALUES(estructura_contenido)
                 ");
                 $stmt->execute([$userId, $documentId, json_encode($estructura)]);
                 

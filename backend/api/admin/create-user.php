@@ -53,10 +53,14 @@ try {
         exit();
     }
     
-    // Validar rol (solo permitir 'user' o 'admin')
-    if ($data->role !== 'user' && $data->role !== 'admin') {
+    // Validar rol dinámicamente
+    $system_roles = ['admin', 'mentor'];
+    $stmt_roles = $db->query("SELECT name FROM content_groups");
+    $group_roles = $stmt_roles->fetchAll(PDO::FETCH_COLUMN);
+    $roles_validos = array_merge($system_roles, $group_roles);
+    if (!in_array($data->role, $roles_validos)) {
         http_response_code(400);
-        echo json_encode(["message" => "Rol no válido. Solo se permite 'user' o 'admin'"]);
+        echo json_encode(["message" => "Rol no válido"]);
         exit();
     }
     

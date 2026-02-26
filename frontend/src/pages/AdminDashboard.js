@@ -1,102 +1,80 @@
 // src/pages/AdminDashboard.js
-import React, { useState, useEffect } from 'react';
+// Fase 5: Panel Admin reestructurado — 5 tabs consolidados
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Navigate, Link } from 'react-router-dom'; // Añadir Link aquí
+import { Navigate } from 'react-router-dom';
 import styled from 'styled-components';
 
-// Importar componentes
+// Componentes del panel
+import AdminDashboardStats from '../components/admin/AdminDashboardStats';
 import AdminUserManagement from '../components/admin/AdminUserManagement';
-import AdminCourseManagement from '../components/admin/AdminCourseManagement';
-import AdminEvaluationManagement from '../components/admin/AdminEvaluationManagement';
-import AdminAnalytics from '../components/admin/AdminAnalytics';
-
-// Servicios
-import { userService, courseService, progressService, evaluationService } from '../services/api';
+import AdminGruposContenido from '../components/admin/AdminGruposContenido';
+import AdminDocumentosPage from './admin/AdminDocumentosPage';
+import AdminNotificaciones from '../components/admin/AdminNotificaciones';
+import VoiceServiceAdmin from '../components/admin/VoiceServiceAdmin';
 
 const Container = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem;
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 `;
 
 const Title = styled.h1`
   color: #2b4361;
   margin: 0;
+  font-size: 1.6rem;
 `;
 
 const TabContainer = styled.div`
   display: flex;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 2rem;
-`;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 
-const Tab = styled.div`
-  padding: 0.75rem 1.5rem;
-  cursor: pointer;
-  font-weight: ${props => props.active ? 'bold' : 'normal'};
-  color: ${props => props.active ? '#2b4361' : '#6b7280'};
-  border-bottom: ${props => props.active ? '2px solid #2b4361' : 'none'};
-  
-  &:hover {
-    color: #2b4361;
+  &::-webkit-scrollbar {
+    display: none;
   }
 `;
 
+const Tab = styled.div`
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  font-weight: ${props => props.$active ? '700' : '500'};
+  color: ${props => props.$active ? '#0891B2' : '#6b7280'};
+  border-bottom: ${props => props.$active ? '3px solid #0891B2' : '3px solid transparent'};
+  white-space: nowrap;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+
+  &:hover {
+    color: #0891B2;
+    background: #f0fdfa;
+  }
+`;
+
+const tabs = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'users', label: 'Usuarios' },
+  { id: 'groups', label: 'Grupos de Contenido' },
+  { id: 'documents', label: 'Documentos' },
+  { id: 'notificaciones', label: 'Notificaciones' },
+  { id: 'config', label: 'Configuración' },
+];
+
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('analytics');
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalCourses: 0,
-    totalLessons: 0,
-    activeUsers: 0,
-    completedCourses: 0
-  });
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch summary statistics
-        const usersRes = await userService.getAll();
-        const coursesRes = await courseService.getAllCourses();
-        const progress = await progressService.getSystemProgress();
-        const evaluations = await evaluationService.getAllEvaluations();
-        
-        setStats({
-          totalUsers: usersRes.data.length,
-          totalCourses: coursesRes.data.length,
-          totalLessons: coursesRes.data.reduce((acc, course) => {
-            return acc + course.modules?.reduce((mAcc, module) => 
-              mAcc + (module.lessons?.length || 0), 0) || 0;
-          }, 0),
-          activeUsers: progress.data.activeUsers || 0,
-          completedCourses: progress.data.completedCourses || 0,
-          totalEvaluations: evaluations.data.length || 0
-        });
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error cargando datos del dashboard:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
-
-  // Redirige si no es admin
   if (!user || user.role !== 'admin') {
-    return <Navigate to="/admin-panel" />;
+    return <Navigate to="/documentos" />;
   }
 
   return (
@@ -104,55 +82,25 @@ const AdminDashboard = () => {
       <Header>
         <Title>Panel de Administración</Title>
       </Header>
-      
-      <div className="list-group mb-4">
-        <h3>Configuración del Sistema</h3>
-        <Link to="/admin/voice-service" className="list-group-item list-group-item-action">
-          Configurar Servicio de Voz
-        </Link>
-<Link to="/admin/documentos" className="list-group-item list-group-item-action">
-</Link>
-  
-        {/* otros enlaces */}
-      </div> 
-      
+
       <TabContainer>
-        <Tab 
-          active={activeTab === 'analytics'} 
-          onClick={() => setActiveTab('analytics')}
-        >
-          Analíticas
-        </Tab>
-        <Tab 
-          active={activeTab === 'users'} 
-          onClick={() => setActiveTab('users')}
-        >
-          Usuarios
-        </Tab>
-        <Tab 
-          active={activeTab === 'courses'} 
-          onClick={() => setActiveTab('courses')}
-        >
-          Cursos
-        </Tab>
-        <Tab 
-          active={activeTab === 'evaluations'} 
-          onClick={() => setActiveTab('evaluations')}
-        >
-          Evaluaciones
-        </Tab>
+        {tabs.map(tab => (
+          <Tab
+            key={tab.id}
+            $active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </Tab>
+        ))}
       </TabContainer>
 
-      {loading ? (
-        <div>Cargando datos...</div>
-      ) : (
-        <>
-          {activeTab === 'analytics' && <AdminAnalytics stats={stats} />}
-          {activeTab === 'users' && <AdminUserManagement />}
-          {activeTab === 'courses' && <AdminCourseManagement />}
-          {activeTab === 'evaluations' && <AdminEvaluationManagement />}
-        </>
-      )}
+      {activeTab === 'dashboard' && <AdminDashboardStats />}
+      {activeTab === 'users' && <AdminUserManagement />}
+      {activeTab === 'groups' && <AdminGruposContenido />}
+      {activeTab === 'documents' && <AdminDocumentosPage embedded />}
+      {activeTab === 'notificaciones' && <AdminNotificaciones />}
+      {activeTab === 'config' && <VoiceServiceAdmin />}
     </Container>
   );
 };

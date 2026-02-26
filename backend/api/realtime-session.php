@@ -13,6 +13,8 @@ require_once '../config/config.php';
 require_once '../config/db.php';
 require_once '../middleware/AuthMiddleware.php';
 require_once '../utils/PollyService.php';
+require_once '../models/SystemConfig.php';
+require_once '../models/DocumentoBloque.php';
 
 // Validate authentication
 $userData = AuthMiddleware::requireAuth();
@@ -25,25 +27,123 @@ $mode = $input['mode'] ?? 'consulta'; // consulta, mentor, evaluacion
 $database = new Database();
 $db = $database->getConnection();
 
-// Get document context if provided
+// Read voice config from system_config
+$systemConfig = new SystemConfig($db);
+$voiceMode = 'realtime'; // default
+$realtimeVoice = 'sage'; // default
+$realtimeModel = 'gpt-4o-realtime-preview-2024-12-17';
+
+if ($systemConfig->getByKey('voice_service')) {
+    $voiceConfig = json_decode($systemConfig->config_value, true);
+    $voiceMode = $voiceConfig['voice_mode'] ?? 'realtime';
+    $realtimeVoice = $voiceConfig['realtime_voice'] ?? 'sage';
+    $realtimeModel = $voiceConfig['realtime_model'] ?? 'gpt-4o-realtime-preview-2024-12-17';
+}
+
+// If voice_mode is not realtime, return config so frontend knows to use text mode
+if ($voiceMode !== 'realtime') {
+    echo json_encode([
+        'success' => true,
+        'voice_mode' => $voiceMode,
+        'realtime_available' => false,
+        'message' => 'Modo de voz configurado: ' . $voiceMode
+    ]);
+    exit;
+}
+
+// === ESTRATEGIA HÍBRIDA: Resumen + Bloques + Function Calling ===
+// Si el documento tiene bloques temáticos, usar resumen + tool definition
+// Si no tiene bloques, usar contenido truncado (fallback)
+
 $documentContext = '';
+$toolDefinition = null;
+$bloquesList = [];
+
 if ($documentId) {
-    $stmt = $db->prepare("SELECT titulo, descripcion, contenido FROM documentos WHERE id = ?");
-    $stmt->execute([$documentId]);
-    $doc = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($doc) {
-        $documentContext = "Documento: {$doc['titulo']}\n{$doc['descripcion']}\n\nContenido: {$doc['contenido']}";
+    $bloqueModel = new DocumentoBloque($db);
+    $tieneBloques = $bloqueModel->documentoTieneBloques($documentId);
+
+    if ($tieneBloques) {
+        // MODO HÍBRIDO: resumen + lista de bloques + tool
+        $stmt = $db->prepare("SELECT titulo, descripcion, resumen FROM documentos WHERE id = ?");
+        $stmt->execute([$documentId]);
+        $doc = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($doc) {
+            $resumen = $doc['resumen'] ?? '';
+            $bloques = $bloqueModel->getByDocumento($documentId);
+
+            // Construir lista de bloques disponibles
+            $bloquesTexto = "BLOQUES TEMATICOS DISPONIBLES (usa la funcion obtener_bloque para consultar el contenido completo de cualquier bloque):\n";
+            foreach ($bloques as $b) {
+                $bloquesTexto .= "- Bloque {$b['orden']}: {$b['titulo']}";
+                if ($b['resumen_bloque']) {
+                    $bloquesTexto .= " — {$b['resumen_bloque']}";
+                }
+                $bloquesTexto .= "\n";
+                $bloquesList[] = [
+                    'id' => $b['id'],
+                    'orden' => $b['orden'],
+                    'titulo' => $b['titulo'],
+                    'resumen' => $b['resumen_bloque']
+                ];
+            }
+
+            $documentContext = "Documento: {$doc['titulo']}\n{$doc['descripcion']}\n\n"
+                . "RESUMEN EJECUTIVO:\n{$resumen}\n\n"
+                . $bloquesTexto;
+
+            // Definir herramienta para obtener bloques
+            $toolDefinition = [
+                [
+                    'type' => 'function',
+                    'name' => 'obtener_bloque',
+                    'description' => 'Busca informacion detallada en el documento. OBLIGATORIO usarla ANTES de decir que no tienes informacion. Busca por cualquier termino: nombres de estudios, farmacos, temas, palabras clave.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'bloque_titulo' => [
+                                'type' => 'string',
+                                'description' => 'Termino de busqueda: nombre de estudio, farmaco, tema o palabra clave. Ejemplos: "VISION", "Vonoprazan", "Fisiopatologia", "Monografia", "P-CABs", "Acido Gastrico"'
+                            ]
+                        ],
+                        'required' => ['bloque_titulo']
+                    ]
+                ]
+            ];
+        }
+    } else {
+        // FALLBACK: documento sin bloques, usar contenido truncado
+        $stmt = $db->prepare("SELECT titulo, descripcion, contenido FROM documentos WHERE id = ?");
+        $stmt->execute([$documentId]);
+        $doc = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($doc) {
+            $contenido = $doc['contenido'] ?? '';
+            $maxContentChars = 49000;
+            if (mb_strlen($contenido) > $maxContentChars) {
+                $contenido = mb_substr($contenido, 0, $maxContentChars) . "\n\n[Contenido truncado por limite de la sesion de voz]";
+            }
+            $documentContext = "Documento: {$doc['titulo']}\n{$doc['descripcion']}\n\nContenido: {$contenido}";
+        }
     }
 }
 
-// Build medical glossary for pronunciation instructions
+// Build medical glossary (truncated for realtime)
 $medicalGlossary = PollyService::getMedicalGlossaryForInstructions();
+if (mb_strlen($medicalGlossary) > 2000) {
+    $medicalGlossary = mb_substr($medicalGlossary, 0, 2000);
+}
 
 // Build system instructions based on mode
-$systemInstructions = buildSystemInstructions($mode, $documentContext, $medicalGlossary);
+$systemInstructions = buildSystemInstructions($mode, $documentContext, $medicalGlossary, $toolDefinition !== null);
 
-// Create ephemeral session with OpenAI
-$ch = curl_init('https://api.openai.com/v1/realtime/sessions');
+// Final safety check: hard cap at ~57000 chars (~16300 tokens)
+if (mb_strlen($systemInstructions) > 57000) {
+    $systemInstructions = mb_substr($systemInstructions, 0, 57000);
+}
+
+// Create client secret with OpenAI GA endpoint (body vacío)
+$ch = curl_init('https://api.openai.com/v1/realtime/client_secrets');
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST => true,
@@ -51,22 +151,7 @@ curl_setopt_array($ch, [
         'Authorization: Bearer ' . OPENAI_API_KEY,
         'Content-Type: application/json'
     ],
-    CURLOPT_POSTFIELDS => json_encode([
-        'model' => 'gpt-4o-realtime-preview-2024-12-17',
-        'voice' => 'sage',
-        'instructions' => $systemInstructions,
-        'input_audio_format' => 'pcm16',
-        'output_audio_format' => 'pcm16',
-        'input_audio_transcription' => [
-            'model' => 'whisper-1'
-        ],
-        'turn_detection' => [
-            'type' => 'server_vad',
-            'threshold' => 0.5,
-            'prefix_padding_ms' => 300,
-            'silence_duration_ms' => 500
-        ]
-    ])
+    CURLOPT_POSTFIELDS => '{}'
 ]);
 
 $response = curl_exec($ch);
@@ -76,35 +161,71 @@ curl_close($ch);
 if ($httpCode !== 200) {
     http_response_code(500);
     echo json_encode([
-        'error' => 'Error creando sesion Realtime',
+        'error' => 'Error creando client secret Realtime',
         'details' => json_decode($response, true)
     ]);
     exit;
 }
 
-$sessionData = json_decode($response, true);
+$secretData = json_decode($response, true);
 
 // Log session for monitoring
-logRealtimeSession($db, $userData->id, $documentId, $mode, $sessionData['id'] ?? null);
+logRealtimeSession($db, $userData->id, $documentId, $mode, null);
 
-echo json_encode([
+$responseData = [
     'success' => true,
-    'client_secret' => $sessionData['client_secret'],
-    'session_id' => $sessionData['id'] ?? null,
-    'expires_at' => $sessionData['expires_at'] ?? null
-]);
+    'voice_mode' => 'realtime',
+    'realtime_available' => true,
+    'client_secret' => $secretData['value'],
+    'expires_at' => $secretData['expires_at'] ?? null,
+    'instructions' => $systemInstructions,
+    'voice' => $realtimeVoice,
+    'model' => $realtimeModel
+];
+
+// Incluir tools y bloques si están disponibles
+if ($toolDefinition) {
+    $responseData['tools'] = $toolDefinition;
+    $responseData['bloques'] = $bloquesList;
+    $responseData['document_id'] = $documentId;
+}
+
+echo json_encode($responseData);
 
 // === HELPER FUNCTIONS ===
 
-function buildSystemInstructions($mode, $documentContext, $glossary) {
+function buildSystemInstructions($mode, $documentContext, $glossary, $hasBloques = false) {
     $baseInstructions = "Eres MentorIA, un asistente de mentoria educativa medica.
 Hablas espanol latinoamericano de forma clara y profesional.
+Tus respuestas son concisas y directas, ideales para conversacion por voz.
+
+REGLAS:
+1. Si la pregunta es CLARAMENTE ajena al documento (clima, deportes, cocina, chistes, temas personales), redirige amablemente: 'Mi especialidad es el contenido de este documento. Preguntame sobre [tema del documento].'
+2. Para CUALQUIER otra pregunta, BUSCA en el documento PRIMERO usando obtener_bloque. NUNCA asumas que algo no esta sin haberlo buscado. Solo despues de 2-3 busquedas fallidas con distintos terminos puedes decir que no encontraste esa informacion.
+3. En caso de duda entre regla 1 y 2, SIEMPRE aplica regla 2 (busca primero).
 
 PRONUNCIACION DE TERMINOS MEDICOS:
 {$glossary}
 
 CONTEXTO DEL DOCUMENTO:
 {$documentContext}";
+
+    if ($hasBloques) {
+        $baseInstructions .= "\n\nFUNCION obtener_bloque — OBLIGATORIA:
+Cuando el estudiante pregunte CUALQUIER cosa sobre el documento, LLAMA obtener_bloque ANTES de hablar.
+El resumen de arriba es solo un indice. NO tiene datos, cifras ni detalles para responder. SIEMPRE busca.
+
+Flujo:
+1. Pregunta del estudiante → llama obtener_bloque(termino_relevante). NO hables antes de buscar.
+2. Usa el resultado para responder. No menciones como obtuviste la info.
+3. Si no encontro nada, intenta con otro termino (sinonimo, nombre parcial).
+4. Solo despues de 2-3 intentos fallidos di que no encontraste esa info en el documento.
+
+Solo NO uses obtener_bloque al saludar o en conversacion general (que puedes hacer, como te llamas).
+
+Nunca digas: 'resumen', 'bloques', 'secciones', 'funcion', 'herramienta'. El estudiante no conoce el sistema.
+Busca por cualquier termino: estudios, farmacos, temas, palabras clave. No necesitas titulo exacto.";
+    }
 
     switch ($mode) {
         case 'mentor':
@@ -113,7 +234,8 @@ CONTEXTO DEL DOCUMENTO:
 - Presenta videos y lecciones en orden
 - Haz preguntas de verificacion despues de cada concepto
 - Se paciente y ofrece explicaciones adicionales si es necesario
-- Usa un tono amigable pero profesional";
+- Usa un tono amigable pero profesional
+- Saluda al estudiante y pregunta en que punto del material quiere continuar";
 
         case 'evaluacion':
             return $baseInstructions . "\n\nMODO EVALUACION ACTIVO:
@@ -121,27 +243,39 @@ CONTEXTO DEL DOCUMENTO:
 - Evalua las respuestas del estudiante de forma justa
 - Proporciona retroalimentacion constructiva
 - Manten un registro del progreso
-- No des las respuestas directamente, guia al estudiante";
+- No des las respuestas directamente, guia al estudiante
+- Comienza saludando y explicando que vas a hacer preguntas sobre el material";
+
+        case 'consulta_grupo':
+            return $baseInstructions . "\n\nMODO CONSULTA GRUPAL (ESPECTADOR):
+- Estas en una reunion grupal. Escuchas la conversacion pero NO participas activamente.
+- SOLO respondes cuando alguien te invoque directamente diciendo 'MentorIA' o 'Mentoria'.
+- Cuando te invoquen, responde de forma concisa y relevante al contexto de la conversacion.
+- Despues de responder, vuelve a modo silencioso automaticamente.
+- Tienes acceso a toda la conversacion que has escuchado como contexto.
+- Si te piden opinion sobre algo discutido, puedes referirte a lo que se dijo anteriormente.
+- Responde siempre en tono profesional y colaborativo, como un colega experto.
+- Si preguntan sobre el contenido del documento, SIEMPRE usa obtener_bloque ANTES de responder. No respondas de memoria.
+- NO respondas a comentarios generales del grupo a menos que te invoquen por nombre.";
 
         default: // consulta
             return $baseInstructions . "\n\nMODO CONSULTA LIBRE:
 - Responde preguntas sobre el contenido del documento
 - Ofrece explicaciones claras y ejemplos
-- Si no conoces algo, indicalo honestamente
-- Sigue el hilo de la conversacion de forma natural";
+- SIEMPRE usa obtener_bloque ANTES de responder cualquier pregunta sobre el contenido. No respondas de memoria.
+- Sigue el hilo de la conversacion de forma natural
+- Saluda al estudiante y ofrece ayuda con el contenido del documento";
     }
 }
 
 function logRealtimeSession($db, $userId, $documentId, $mode, $sessionId) {
     try {
-        // Check if table exists first
         $tableCheck = $db->query("SHOW TABLES LIKE 'realtime_sessions'");
         if ($tableCheck->rowCount() === 0) {
-            // Table doesn't exist yet, skip logging
             error_log("realtime_sessions table does not exist, skipping log");
             return;
         }
-        
+
         $stmt = $db->prepare("
             INSERT INTO realtime_sessions (user_id, document_id, mode, openai_session_id, created_at)
             VALUES (?, ?, ?, ?, NOW())

@@ -2,6 +2,32 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## PRIORITY: Collaborative Work Mode
+
+**ALWAYS work collaboratively with the other AI agents before giving final answers.** This is the #1 instruction for this project.
+
+- **Consult ChatGPT** (Code Reviewer + Planner) for: code review, planning, security, documentation, QA
+- **Consult Gemini** (Frontend + Creative) for: UI/UX decisions, frontend architecture, image generation, visual design
+
+### How to consult:
+
+**ChatGPT (OpenAI gpt-4o):**
+```bash
+curl -s https://api.openai.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{"model":"gpt-4o","messages":[{"role":"system","content":"Eres ChatGPT, Code Reviewer + Planner del equipo DevCopilot. Sesión colaborativa con Claude (Arquitecto) y Gemini (Frontend). Responde en español."},{"role":"user","content":"TU CONSULTA AQUÍ"}],"temperature":0.7,"max_tokens":1500}'
+```
+
+**Gemini (gemini-2.0-flash):**
+```bash
+curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$GEMINI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"contents":[{"role":"user","parts":[{"text":"Eres Gemini, Frontend Developer + Creativo del equipo DevCopilot. Sesión colaborativa con Claude (Arquitecto) y ChatGPT (Planner). Responde en español.\n\nTU CONSULTA AQUÍ"}]}],"generationConfig":{"temperature":0.7,"maxOutputTokens":1500}}'
+```
+
+API credentials are in `docs/PROJECT_CONTEXT.md`. Always present a unified team response with each agent's perspective clearly labeled.
+
 ## Project Overview
 
 **Mentoria 4.0** (formerly VoiceMed) is an AI-powered medical education platform deployed at `mentoria.ateneo.co`. It combines structured courses with conversational AI, voice interaction (speech-to-text/text-to-speech), a video mentor system, and document-based Q&A. The codebase is Spanish-language throughout (variable names, comments, UI text).

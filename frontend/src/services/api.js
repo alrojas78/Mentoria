@@ -615,6 +615,18 @@ export const retoService = {
   }
 };
 
+// Servicio de notificaciones
+export const notificacionService = {
+  // Admin
+  getAll: () => axios.get(`${API_BASE_URL}/admin/notificaciones.php`),
+  create: (data) => axios.post(`${API_BASE_URL}/admin/notificaciones.php`, data),
+  update: (data) => axios.put(`${API_BASE_URL}/admin/notificaciones.php`, data),
+  delete: (id) => axios.delete(`${API_BASE_URL}/admin/notificaciones.php?id=${id}`),
+  // Usuario
+  getPendientes: () => axios.get(`${API_BASE_URL}/notificaciones.php`),
+  marcarLeida: (notificacionId) => axios.post(`${API_BASE_URL}/notificaciones.php`, { notificacion_id: notificacionId }),
+};
+
 // Servicio de sesión Realtime (OpenAI Realtime API)
 export const realtimeSessionService = {
   createSession: (documentId, mode = 'consulta') => {
@@ -648,5 +660,6 @@ export default {
   consulta: consultaService,
   attachments: attachmentService,
   transcriptions: transcriptionService,
-  reto: retoService  // Servicio de reto semanal
+  reto: retoService,  // Servicio de reto semanal
+  notificaciones: notificacionService
 };

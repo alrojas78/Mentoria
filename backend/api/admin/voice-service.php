@@ -46,15 +46,18 @@ switch ($_SERVER['REQUEST_METHOD']) {
             http_response_code(200);
             echo json_encode($voiceConfig);
         } else {
-            // Si no existe, crear configuración por defecto
+            // Si no existe, crear configuración por defecto con voice_mode
             $defaultConfig = [
                 'service' => 'polly',
-                'voice_id' => 'Lupe'
+                'voice_id' => 'Lupe',
+                'voice_mode' => 'realtime',
+                'realtime_voice' => 'sage',
+                'realtime_model' => 'gpt-4o-realtime-preview-2024-12-17'
             ];
-            
+
             $systemConfig->config_key = 'voice_service';
             $systemConfig->config_value = json_encode($defaultConfig);
-            
+
             if ($systemConfig->save()) {
                 http_response_code(200);
                 echo json_encode($defaultConfig);
@@ -64,28 +67,44 @@ switch ($_SERVER['REQUEST_METHOD']) {
             }
         }
         break;
-        
+
     case 'POST':
         // Actualizar configuración
         $data = json_decode(file_get_contents("php://input"), true);
-        
+
         if (!$data || !isset($data['service']) || !isset($data['voice_id'])) {
             http_response_code(400);
             echo json_encode(["message" => "Datos incompletos"]);
             exit();
         }
-        
-        // Validar servicio
-        if ($data['service'] !== 'polly' && $data['service'] !== 'elevenlabs') {
+
+        // Validar servicio TTS (para modo texto)
+        if (!in_array($data['service'], ['polly', 'elevenlabs'])) {
             http_response_code(400);
-            echo json_encode(["message" => "Servicio no válido"]);
+            echo json_encode(["message" => "Servicio TTS no válido"]);
             exit();
         }
-        
-        // Guardar configuración
+
+        // Validar voice_mode si se envía
+        $validModes = ['realtime', 'polly', 'elevenlabs'];
+        if (isset($data['voice_mode']) && !in_array($data['voice_mode'], $validModes)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Modo de voz no válido"]);
+            exit();
+        }
+
+        // Validar voz realtime si se envía
+        $validRealtimeVoices = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse'];
+        if (isset($data['realtime_voice']) && !in_array($data['realtime_voice'], $validRealtimeVoices)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Voz realtime no válida"]);
+            exit();
+        }
+
+        // Guardar configuración completa
         $systemConfig->config_key = 'voice_service';
         $systemConfig->config_value = json_encode($data);
-        
+
         if ($systemConfig->save()) {
             http_response_code(200);
             echo json_encode([
@@ -97,7 +116,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
             echo json_encode(["message" => "Error al actualizar configuración"]);
         }
         break;
-        
+
     default:
         http_response_code(405);
         echo json_encode(["message" => "Método no permitido"]);

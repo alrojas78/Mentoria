@@ -85,12 +85,21 @@ if ($action == 'login') {
     $user->nombre = $data->nombre;
     $user->email = $data->email;
     $user->password = password_hash($data->password, PASSWORD_BCRYPT);
-    // Validar rol: solo roles permitidos en registro (no admin)
-    $allowed_register_roles = ['estudiante', 'mentor', 'coordinador'];
-    if (!empty($data->role) && in_array($data->role, $allowed_register_roles)) {
-        $user->role = $data->role;
+    // Validar rol: solo roles de content_groups (excluir roles del sistema)
+    $systemRoles = ['admin', 'mentor', 'coordinador'];
+    $role = !empty($data->role) ? strtolower(trim($data->role)) : '';
+
+    if ($role && !in_array($role, $systemRoles)) {
+        // Verificar que el grupo existe en content_groups
+        $stmtCheck = $db->prepare("SELECT COUNT(*) FROM content_groups WHERE name = ?");
+        $stmtCheck->execute([$role]);
+        if ($stmtCheck->fetchColumn() > 0) {
+            $user->role = $role;
+        } else {
+            $user->role = 'vozama';
+        }
     } else {
-        $user->role = 'estudiante';
+        $user->role = 'vozama';
     }
     $user->created = date('Y-m-d H:i:s');
     

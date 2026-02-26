@@ -1,8 +1,19 @@
 // src/components/AdminUserTable.js (actualizado)
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 import { userService } from '../services/api';
 import { FaEdit, FaTrash, FaFilter, FaSearch, FaUserShield, FaUser, FaChalkboardTeacher } from 'react-icons/fa';
+
+const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
+
+const ROLE_COLORS = {
+  admin: { bg: '#e3f2fd', color: '#0d47a1' },
+  mentor: { bg: '#fff3e0', color: '#e65100' },
+  vozama: { bg: '#f3e5f5', color: '#6a1b9a' },
+};
+const DEFAULT_ROLE_COLOR = { bg: '#f1f8e9', color: '#33691e' };
+const ucfirst = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
 const Container = styled.div`
   padding: 1rem;
@@ -91,16 +102,8 @@ const RoleTag = styled.span`
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
- background-color: ${props => 
-    props.role === 'admin' ? '#e3f2fd' : 
-    props.role === 'mentor' ? '#fff3e0' : 
-    '#f1f8e9'
-  };
-  color: ${props => 
-    props.role === 'admin' ? '#0d47a1' : 
-    props.role === 'mentor' ? '#e65100' : 
-    '#33691e'
-  };
+  background-color: ${props => (ROLE_COLORS[props.role] || DEFAULT_ROLE_COLOR).bg};
+  color: ${props => (ROLE_COLORS[props.role] || DEFAULT_ROLE_COLOR).color};
 `;
 
 const Pagination = styled.div`
@@ -236,16 +239,27 @@ const AdminUserTable = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  const [availableRoles, setAvailableRoles] = useState([]);
+
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
     password: '',
     role: 'user'
   });
-  
+
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/roles.php`);
+        setAvailableRoles(res.data.roles || []);
+      } catch (error) {
+        console.error('Error cargando roles:', error);
+      }
+    };
+    fetchRoles();
     loadUsers();
   }, []);
 
@@ -423,14 +437,14 @@ const AdminUserTable = () => {
         </SearchInput>
         
         <FilterContainer>
-          <select 
+          <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
           >
-<option value="">Todos los roles</option>
-<option value="admin">Administradores</option>
-<option value="mentor">Mentores</option>
-<option value="user">Usuarios</option>
+            <option value="">Todos los roles</option>
+            {availableRoles.map(r => (
+              <option key={r.name} value={r.name}>{r.label}</option>
+            ))}
           </select>
           
           <Button primary onClick={handleAddNew}>
@@ -467,23 +481,8 @@ const AdminUserTable = () => {
                     <Td>{user.email}</Td>
                     <Td>
                       <RoleTag role={user.role}>
-
-{user.role === 'admin' ? (
-  <>
-    <FaUserShield />
-    Administrador
-  </>
-) : user.role === 'mentor' ? (
-  <>
-    <FaChalkboardTeacher />
-    Mentor
-  </>
-) : (
-  <>
-    <FaUser />
-    Usuario
-  </>
-)}
+                        {user.role === 'admin' ? <FaUserShield /> : user.role === 'mentor' ? <FaChalkboardTeacher /> : <FaUser />}
+                        {(availableRoles.find(r => r.name === user.role) || {}).label || ucfirst(user.role)}
                       </RoleTag>
                     </Td>
                     <Td>{new Date(user.created).toLocaleDateString()}</Td>
@@ -610,26 +609,19 @@ const AdminUserTable = () => {
                 {formErrors.password && <div className="error">{formErrors.password}</div>}
               </FormGroup>
               
-<FormGroup>
-  <label htmlFor="role">Rol</label>
-  <select
-    id="role"
-    name="role"
-    value={formData.role}
-    onChange={handleInputChange}
-    style={{ 
-      width: '100%', 
-      padding: '0.5rem',
-      backgroundColor: 'white',
-      border: '1px solid #ccc',
-      borderRadius: '4px'
-    }}
-  >
-    <option value="admin">👨‍💼 Administrador</option>
-    <option value="mentor">👨‍🏫 Mentor</option>
-    <option value="user">👤 Usuario</option>
-  </select>
-</FormGroup>
+              <FormGroup>
+                <label htmlFor="role">Rol</label>
+                <select
+                  id="role"
+                  name="role"
+                  value={formData.role}
+                  onChange={handleInputChange}
+                >
+                  {availableRoles.map(r => (
+                    <option key={r.name} value={r.name}>{r.label}</option>
+                  ))}
+                </select>
+              </FormGroup>
               
               <ModalFooter>
                 <Button onClick={() => setIsModalOpen(false)}>Cancelar</Button>

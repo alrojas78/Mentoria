@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { consultaService } from '../../services/api';
 import AttachmentManager from '../../components/AttachmentManager';
+import axios from 'axios';
 
-const ROLES_DISPONIBLES = ['admin', 'mentor', 'estudiante', 'coordinador'];
+const SYSTEM_ROLES = ['admin', 'mentor', 'coordinador'];
 const BACKEND_BASE = 'https://mentoria.ateneo.co/backend';
 
 // Estilos reutilizables
@@ -33,7 +34,7 @@ const styles = {
   alert: (type) => ({ padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', backgroundColor: type === 'success' ? '#d1fae5' : '#fee2e2', color: type === 'success' ? '#065f46' : '#991b1b', fontSize: '0.9rem' })
 };
 
-const AdminDocumentosPage = () => {
+const AdminDocumentosPage = ({ embedded = false }) => {
   // Vista: 'list' o 'form'
   const [vista, setVista] = useState('list');
   const [activeTab, setActiveTab] = useState('general');
@@ -58,15 +59,113 @@ const AdminDocumentosPage = () => {
   const [umbralParcial, setUmbralParcial] = useState(0.30);
   const [tiempoRespuesta, setTiempoRespuesta] = useState(60);
 
+  // Modos de aprendizaje
+  const [modoConsulta, setModoConsulta] = useState(true);
+  const [modoMentor, setModoMentor] = useState(true);
+  const [modoEvaluacion, setModoEvaluacion] = useState(true);
+  const [modoReto, setModoReto] = useState(true);
+
   // Roles e imagen
-  const [rolesAsignados, setRolesAsignados] = useState(['admin', 'mentor', 'estudiante', 'coordinador']);
+  const [rolesDisponibles, setRolesDisponibles] = useState([...SYSTEM_ROLES]);
+  const [rolesAsignados, setRolesAsignados] = useState([...SYSTEM_ROLES]);
   const [imagenFile, setImagenFile] = useState(null);
   const [imagenPreview, setImagenPreview] = useState(null);
 
   // ID temporal para AttachmentManager en documentos recién creados
   const [savedDocId, setSavedDocId] = useState(null);
 
-  useEffect(() => { cargarDocumentos(); }, []);
+  // Bloques temáticos
+  const [bloques, setBloques] = useState([]);
+  const [resumenDoc, setResumenDoc] = useState('');
+  const [generandoBloques, setGenerandoBloques] = useState(false);
+  const [bloquesExpandidos, setBloquesExpandidos] = useState({});
+
+  const cargarBloques = useCallback(async (docId) => {
+    if (!docId) return;
+    try {
+      const res = await axios.get(`${BACKEND_BASE}/api/admin/generar-bloques.php`, {
+        params: { documento_id: docId },
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.data?.success) {
+        setBloques(res.data.bloques || []);
+        setResumenDoc(res.data.resumen || '');
+      }
+    } catch (err) {
+      console.error('Error cargando bloques:', err);
+    }
+  }, []);
+
+  const generarBloques = async (docId) => {
+    if (!docId) return;
+    if (!window.confirm('Esto analizara el contenido con IA y creara bloques tematicos automaticamente. Los bloques anteriores se eliminaran. ¿Continuar?')) return;
+
+    setGenerandoBloques(true);
+    setError('');
+    setMensaje('');
+    try {
+      const res = await axios.post(`${BACKEND_BASE}/api/admin/generar-bloques.php`, {
+        documento_id: docId
+      }, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 120000
+      });
+      if (res.data?.success) {
+        setBloques(res.data.bloques?.map((b, i) => ({
+          id: i + 1,
+          orden: b.orden,
+          titulo: b.titulo,
+          resumen_bloque: b.resumen,
+          tokens_estimados: b.tokens_estimados
+        })) || []);
+        setResumenDoc(res.data.resumen || '');
+        setMensaje(`${res.data.bloques_creados} bloques creados exitosamente (~${res.data.total_tokens} tokens total)`);
+      }
+    } catch (err) {
+      setError('Error al generar bloques: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setGenerandoBloques(false);
+      // Recargar bloques reales desde DB
+      await cargarBloques(docId);
+    }
+  };
+
+  const eliminarBloques = async (docId) => {
+    if (!docId) return;
+    if (!window.confirm('¿Eliminar todos los bloques y el resumen de este documento?')) return;
+
+    try {
+      await axios.delete(`${BACKEND_BASE}/api/admin/generar-bloques.php`, {
+        data: { documento_id: docId },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      setBloques([]);
+      setResumenDoc('');
+      setMensaje('Bloques y resumen eliminados.');
+    } catch (err) {
+      setError('Error al eliminar bloques.');
+    }
+  };
+
+  useEffect(() => {
+    cargarDocumentos();
+    // Cargar grupos de contenido para roles dinámicos
+    axios.get(`${BACKEND_BASE}/api/admin/content-groups.php`)
+      .then(res => {
+        if (res.data?.success) {
+          const groupNames = res.data.groups.map(g => g.name);
+          const allRoles = [...SYSTEM_ROLES, ...groupNames];
+          setRolesDisponibles(allRoles);
+        }
+      })
+      .catch(() => {}); // Silenciar error, usa default
+  }, []);
 
   const cargarDocumentos = async () => {
     try {
@@ -101,7 +200,11 @@ const AdminDocumentosPage = () => {
           puntuacion_respuesta_minima: puntuacionMinima,
           umbral_respuesta_parcial: umbralParcial,
           tiempo_respuesta_segundos: tiempoRespuesta,
-          roles: rolesAsignados
+          roles: rolesAsignados,
+          modo_consulta: modoConsulta ? 1 : 0,
+          modo_mentor: modoMentor ? 1 : 0,
+          modo_evaluacion: modoEvaluacion ? 1 : 0,
+          modo_reto: modoReto ? 1 : 0
         };
         await consultaService.updateDocumento(updateData);
         if (imagenFile) {
@@ -123,6 +226,10 @@ const AdminDocumentosPage = () => {
         formData.append('umbral_respuesta_parcial', umbralParcial.toString());
         formData.append('tiempo_respuesta_segundos', tiempoRespuesta.toString());
         formData.append('roles', rolesAsignados.join(','));
+        formData.append('modo_consulta', modoConsulta ? '1' : '0');
+        formData.append('modo_mentor', modoMentor ? '1' : '0');
+        formData.append('modo_evaluacion', modoEvaluacion ? '1' : '0');
+        formData.append('modo_reto', modoReto ? '1' : '0');
         if (imagenFile) {
           formData.append('imagen', imagenFile);
         }
@@ -154,13 +261,22 @@ const AdminDocumentosPage = () => {
     setUmbralParcial(doc.umbral_respuesta_parcial || 0.30);
     setTiempoRespuesta(doc.tiempo_respuesta_segundos || 60);
     setRolesAsignados(doc.roles_asignados || ['admin', 'mentor', 'estudiante', 'coordinador']);
+    setModoConsulta(doc.modo_consulta !== undefined ? !!parseInt(doc.modo_consulta) : true);
+    setModoMentor(doc.modo_mentor !== undefined ? !!parseInt(doc.modo_mentor) : true);
+    setModoEvaluacion(doc.modo_evaluacion !== undefined ? !!parseInt(doc.modo_evaluacion) : true);
+    setModoReto(doc.modo_reto !== undefined ? !!parseInt(doc.modo_reto) : true);
     setImagenFile(null);
     setImagenPreview(doc.imagen ? `${BACKEND_BASE}/${doc.imagen}` : null);
     setSavedDocId(null);
+    setBloques([]);
+    setResumenDoc('');
+    setBloquesExpandidos({});
     setMensaje('');
     setError('');
     setActiveTab('general');
     setVista('form');
+    // Cargar bloques del documento
+    cargarBloques(doc.id);
   };
 
   const handleDelete = async (id) => {
@@ -189,9 +305,16 @@ const AdminDocumentosPage = () => {
     setUmbralParcial(0.30);
     setTiempoRespuesta(60);
     setRolesAsignados(['admin', 'mentor', 'estudiante', 'coordinador']);
+    setModoConsulta(true);
+    setModoMentor(true);
+    setModoEvaluacion(true);
+    setModoReto(true);
     setImagenFile(null);
     setImagenPreview(null);
     setSavedDocId(null);
+    setBloques([]);
+    setResumenDoc('');
+    setBloquesExpandidos({});
     setShowPreview(false);
     setMensaje('');
     setError('');
@@ -215,7 +338,7 @@ const AdminDocumentosPage = () => {
   // ========= VISTA: LISTA DE DOCUMENTOS =========
   if (vista === 'list') {
     return (
-      <div style={styles.container}>
+      <div style={embedded ? {} : styles.container}>
         <div style={styles.header}>
           <h2 style={{ margin: 0, color: '#2b4361' }}>Documentos</h2>
           <button onClick={handleNuevo} style={styles.btnPrimary}>
@@ -295,11 +418,12 @@ const AdminDocumentosPage = () => {
   const tabs = [
     { id: 'general', label: 'Informacion General' },
     { id: 'evaluacion', label: 'Evaluacion' },
+    { id: 'bloques', label: `Bloques Tematicos${bloques.length ? ` (${bloques.length})` : ''}` },
     { id: 'anexos', label: 'Anexos y Media' }
   ];
 
   return (
-    <div style={styles.container}>
+    <div style={embedded ? {} : styles.container}>
       {/* Header */}
       <div style={styles.header}>
         <h2 style={{ margin: 0, color: '#2b4361' }}>
@@ -385,7 +509,7 @@ const AdminDocumentosPage = () => {
           <div style={styles.section}>
             <h3 style={{ margin: '0 0 0.75rem 0', color: '#2b4361', fontSize: '1rem' }}>Roles de acceso</h3>
             <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
-              {ROLES_DISPONIBLES.map((r) => (
+              {rolesDisponibles.map((r) => (
                 <label key={r} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.95rem' }}>
                   <input
                     type="checkbox"
@@ -400,6 +524,32 @@ const AdminDocumentosPage = () => {
                     style={{ accentColor: '#0891B2', width: '16px', height: '16px' }}
                   />
                   <span style={{ textTransform: 'capitalize' }}>{r}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Modos de Aprendizaje */}
+          <div style={{ ...styles.section, borderColor: '#bfdbfe', backgroundColor: '#f0f9ff' }}>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: '#2b4361', fontSize: '1rem' }}>Modos de Aprendizaje</h3>
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: '0 0 0.75rem 0' }}>
+              Selecciona qué modos estarán disponibles para los estudiantes en este documento.
+            </p>
+            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+              {[
+                { key: 'consulta', label: '💬 Consulta', state: modoConsulta, setter: setModoConsulta },
+                { key: 'mentor', label: '👨‍🏫 Mentor', state: modoMentor, setter: setModoMentor },
+                { key: 'evaluacion', label: '📝 Evaluación', state: modoEvaluacion, setter: setModoEvaluacion },
+                { key: 'reto', label: '🎯 Reto Semanal', state: modoReto, setter: setModoReto }
+              ].map(modo => (
+                <label key={modo.key} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.95rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={modo.state}
+                    onChange={(e) => modo.setter(e.target.checked)}
+                    style={{ accentColor: '#0891B2', width: '16px', height: '16px' }}
+                  />
+                  <span>{modo.label}</span>
                 </label>
               ))}
             </div>
@@ -481,7 +631,173 @@ const AdminDocumentosPage = () => {
         </form>
       )}
 
-      {/* Tab 3: Anexos y Media */}
+      {/* Tab 3: Bloques Temáticos */}
+      {activeTab === 'bloques' && (
+        <div>
+          {/* Info */}
+          <div style={{ ...styles.section, backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
+            <p style={{ margin: 0, fontSize: '0.9rem', color: '#1e40af' }}>
+              Los bloques tematicos permiten que MentorIA acceda al contenido completo del documento durante las sesiones de voz,
+              sin importar el tamano. El documento se divide en secciones y la IA consulta cada bloque cuando lo necesita.
+            </p>
+          </div>
+
+          {/* Acciones */}
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => generarBloques(getDocIdForAttachments())}
+              disabled={generandoBloques || !getDocIdForAttachments()}
+              style={{
+                ...styles.btnPrimary,
+                opacity: (generandoBloques || !getDocIdForAttachments()) ? 0.6 : 1,
+                display: 'flex', alignItems: 'center', gap: '0.5rem'
+              }}
+            >
+              {generandoBloques ? (
+                <>
+                  <span style={{ display: 'inline-block', width: 16, height: 16, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  Analizando con IA...
+                </>
+              ) : (
+                bloques.length > 0 ? 'Regenerar Bloques' : 'Generar Bloques con IA'
+              )}
+            </button>
+
+            {bloques.length > 0 && (
+              <button onClick={() => eliminarBloques(getDocIdForAttachments())} style={styles.btnDanger}>
+                Eliminar Bloques
+              </button>
+            )}
+
+            {!getDocIdForAttachments() && (
+              <span style={{ color: '#6b7280', fontSize: '0.9rem', alignSelf: 'center' }}>
+                Guarda el documento primero para generar bloques.
+              </span>
+            )}
+          </div>
+
+          {/* Resumen */}
+          {resumenDoc && (
+            <div style={{ ...styles.section, marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: '0 0 0.75rem 0', color: '#2b4361', fontSize: '1rem' }}>
+                Resumen Ejecutivo (usado como contexto en voz)
+              </h3>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', lineHeight: '1.6', color: '#374151', maxHeight: '300px', overflowY: 'auto' }}>
+                {resumenDoc}
+              </div>
+            </div>
+          )}
+
+          {/* Lista de bloques */}
+          {bloques.length > 0 ? (
+            <div>
+              <h3 style={{ color: '#2b4361', marginBottom: '0.75rem' }}>
+                {bloques.length} Bloques ({bloques.reduce((sum, b) => sum + (b.tokens_estimados || 0), 0).toLocaleString()} tokens total)
+              </h3>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                {bloques.map((bloque) => (
+                  <div key={bloque.id || bloque.orden} style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    backgroundColor: '#fff'
+                  }}>
+                    {/* Header del bloque */}
+                    <div
+                      onClick={async () => {
+                        const isExpanded = bloquesExpandidos[bloque.orden];
+                        setBloquesExpandidos(prev => ({ ...prev, [bloque.orden]: !isExpanded }));
+                        // Lazy load contenido si no lo tiene
+                        if (!isExpanded && !bloque.contenido && bloque.id) {
+                          try {
+                            const res = await axios.get(`${BACKEND_BASE}/api/documento-bloques.php`, {
+                              params: { documento_id: getDocIdForAttachments(), bloque_id: bloque.id },
+                              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                            });
+                            if (res.data?.success && res.data.bloque) {
+                              setBloques(prev => prev.map(b => b.id === bloque.id ? { ...b, contenido: res.data.bloque.contenido } : b));
+                            }
+                          } catch (err) { console.error('Error cargando contenido del bloque:', err); }
+                        }
+                      }}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        backgroundColor: bloquesExpandidos[bloque.orden] ? '#f0fdfa' : '#fff',
+                        transition: 'background-color 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{
+                          width: '28px', height: '28px', borderRadius: '50%',
+                          backgroundColor: '#0891B2', color: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.8rem', fontWeight: '700', flexShrink: 0
+                        }}>
+                          {bloque.orden}
+                        </span>
+                        <div>
+                          <strong style={{ fontSize: '0.95rem', color: '#2b4361' }}>{bloque.titulo}</strong>
+                          {bloque.resumen_bloque && (
+                            <p style={{ margin: '0.15rem 0 0', fontSize: '0.82rem', color: '#6b7280' }}>
+                              {bloque.resumen_bloque.length > 120 ? bloque.resumen_bloque.substring(0, 120) + '...' : bloque.resumen_bloque}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                          ~{(bloque.tokens_estimados || 0).toLocaleString()} tokens
+                        </span>
+                        <span style={{ color: '#9ca3af', fontSize: '1.2rem' }}>
+                          {bloquesExpandidos[bloque.orden] ? '▼' : '▶'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Contenido expandido */}
+                    {bloquesExpandidos[bloque.orden] && bloque.contenido && (
+                      <div style={{
+                        padding: '0.75rem 1rem',
+                        borderTop: '1px solid #e5e7eb',
+                        backgroundColor: '#f9fafb',
+                        maxHeight: '400px',
+                        overflowY: 'auto'
+                      }}>
+                        <pre style={{
+                          whiteSpace: 'pre-wrap',
+                          wordWrap: 'break-word',
+                          fontSize: '0.85rem',
+                          lineHeight: '1.5',
+                          color: '#374151',
+                          margin: 0,
+                          fontFamily: 'inherit'
+                        }}>
+                          {bloque.contenido}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : !generandoBloques && getDocIdForAttachments() ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
+              <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Sin bloques tematicos</p>
+              <p>Presiona "Generar Bloques con IA" para analizar el contenido y crear bloques automaticamente.</p>
+              <p style={{ fontSize: '0.85rem' }}>Esto permite que MentorIA acceda al documento completo durante las sesiones de voz.</p>
+            </div>
+          ) : null}
+
+          {/* Spinner CSS */}
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {/* Tab 4: Anexos y Media */}
       {activeTab === 'anexos' && (
         <div>
           {getDocIdForAttachments() ? (

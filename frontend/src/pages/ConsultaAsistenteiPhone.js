@@ -75,6 +75,7 @@ const ConsultaAsistenteiPhone = () => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [audioLevel, setAudioLevel] = useState(0);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+  const [showConsultaSubmodes, setShowConsultaSubmodes] = useState(false);
   const [firstInteraction, setFirstInteraction] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   // Realtime states
@@ -342,6 +343,7 @@ const handleGoBack = useCallback(() => {
       case 'mentor': return { label: 'Mentor', color: '#10B981', emoji: '👨‍🏫' };
       case 'evaluacion': return { label: 'Evaluación', color: '#F59E0B', emoji: '📝' };
       case 'reto': return { label: 'Reto', color: '#8B5CF6', emoji: '🎯' };
+      case 'consulta_grupo': return { label: 'Grupal', color: '#8B5CF6', emoji: '👥' };
       default: return { label: 'Consulta', color: '#22D3EE', emoji: '💬' };
     }
   }, []);
@@ -1293,8 +1295,8 @@ const handleModeChange = useCallback((newMode) => {
 
       setCurrentMode(selectedMode);
 
-      // Solo modo consulta usa Realtime (mentor/evaluación/reto mantienen flujo tradicional)
-      if (isRealtimeSupported() && selectedMode === 'consulta') {
+      // Modos consulta y consulta_grupo usan Realtime (mentor/evaluación/reto mantienen flujo tradicional)
+      if (isRealtimeSupported() && (selectedMode === 'consulta' || selectedMode === 'consulta_grupo')) {
         console.log('Iniciando modo Realtime para:', selectedMode);
         connectRealtime(selectedMode);
         return;
@@ -1357,7 +1359,8 @@ const handleModeChange = useCallback((newMode) => {
     const isRTConnected = realtimeState === SESSION_STATES.CONNECTED || realtimeState === SESSION_STATES.LISTENING || realtimeState === SESSION_STATES.AI_SPEAKING;
     const fmtDur = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
     const rtColor = { [SESSION_STATES.CONNECTING]: '#6b7280', [SESSION_STATES.CONNECTED]: '#10b981', [SESSION_STATES.LISTENING]: '#ef4444', [SESSION_STATES.AI_SPEAKING]: '#0891B2', [SESSION_STATES.ERROR]: '#ef4444' }[realtimeState] || '#6b7280';
-    const rtLabel = { [SESSION_STATES.CONNECTING]: 'Conectando...', [SESSION_STATES.CONNECTED]: 'Listo — habla', [SESSION_STATES.LISTENING]: 'Escuchando...', [SESSION_STATES.AI_SPEAKING]: 'MentorIA respondiendo...', [SESSION_STATES.ERROR]: 'Error' }[realtimeState] || 'Desconectado';
+    const isGrupal = currentMode === 'consulta_grupo';
+    const rtLabel = { [SESSION_STATES.CONNECTING]: 'Conectando...', [SESSION_STATES.CONNECTED]: isGrupal ? 'Escuchando grupo — di "MentorIA"' : 'Listo — habla', [SESSION_STATES.LISTENING]: isGrupal ? 'Escuchando grupo...' : 'Escuchando...', [SESSION_STATES.AI_SPEAKING]: 'MentorIA respondiendo...', [SESSION_STATES.ERROR]: 'Error' }[realtimeState] || 'Desconectado';
 
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#121826', color: '#F1F5F9', fontFamily: "'Inter', sans-serif" }}>
@@ -1367,13 +1370,16 @@ const handleModeChange = useCallback((newMode) => {
               {isRTConnected ? '\u2715' : '\u2190'}
             </button>
             <div>
-              <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>MentorIA Realtime</h3>
+              <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>{currentMode === 'consulta_grupo' ? 'MentorIA Grupal' : 'MentorIA Realtime'}</h3>
               {documentInfo && <p style={{ margin: 0, fontSize: '0.65rem', color: '#94A3B8' }}>{documentInfo.titulo}</p>}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {isRTConnected && <span style={{ fontSize: '0.8rem', color: '#94A3B8' }}>{fmtDur(realtimeSessionDuration)}</span>}
-            <button onClick={handleRealtimeFallbackToText} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px', padding: '5px 12px', color: '#94A3B8', fontSize: '0.75rem', cursor: 'pointer' }}>Texto</button>
+            <button onClick={handleRealtimeFallbackToText} style={{ background: 'linear-gradient(135deg, rgba(30,41,59,0.9) 0%, rgba(51,65,85,0.9) 100%)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '18px', padding: '6px 14px', color: '#CBD5E1', fontSize: '0.72rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', backdropFilter: 'blur(8px)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>
+              Texto
+            </button>
           </div>
         </header>
 
@@ -1396,6 +1402,11 @@ const handleModeChange = useCallback((newMode) => {
               {realtimeState === SESSION_STATES.ERROR && <span style={{ fontSize: '2rem' }}>&#9888;</span>}
             </div>
             <p style={{ marginTop: '0.8rem', color: rtColor, fontSize: '0.9rem', fontWeight: 500 }}>{rtLabel}</p>
+            {isGrupal && (
+              <span style={{ display: 'inline-block', marginTop: '0.4rem', padding: '3px 12px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.4)', color: '#A78BFA', fontSize: '0.7rem', fontWeight: 500 }}>
+                👥 Modo Grupal
+              </span>
+            )}
           </div>
 
           {realtimeState === SESSION_STATES.AI_SPEAKING && (
@@ -1413,36 +1424,64 @@ const handleModeChange = useCallback((newMode) => {
         </div>
 
         {showRealtimeTranscript && (realtimeUserTranscripts.length > 0 || realtimeAiTranscripts.length > 0 || realtimeAiTranscript) && (
-          <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '10px 16px', background: 'rgba(30,41,59,0.8)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 600 }}>Transcripcion</span>
-              <button onClick={() => setShowRealtimeTranscript(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.75rem' }}>Ocultar</button>
+          <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '0', background: 'linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.95) 100%)', borderTop: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}>
+            <div style={{ position: 'sticky', top: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px 6px', background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(15,23,42,0.85) 100%)', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Transcripción</span>
+              </div>
+              <button onClick={() => setShowRealtimeTranscript(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px 8px', color: '#64748B', cursor: 'pointer', fontSize: '0.65rem' }}>Ocultar</button>
             </div>
-            {(() => {
-              const all = [];
-              const maxL = Math.max(realtimeUserTranscripts.length, realtimeAiTranscripts.length);
-              for (let i = 0; i < maxL; i++) {
-                if (i < realtimeUserTranscripts.length) all.push({ t: 'u', text: realtimeUserTranscripts[i], i });
-                if (i < realtimeAiTranscripts.length) all.push({ t: 'a', text: realtimeAiTranscripts[i], i });
-              }
-              return all.map((x, j) => (
-                <p key={`${x.t}-${x.i}`} style={{ margin: '3px 0', fontSize: '0.8rem', color: x.t === 'u' ? '#22D3EE' : '#94A3B8' }}>
-                  <strong>{x.t === 'u' ? 'Tu:' : 'MentorIA:'}</strong> {x.text}
-                </p>
-              ));
-            })()}
-            {realtimeAiTranscript && (
-              <p style={{ margin: '3px 0', fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}><strong>MentorIA:</strong> {realtimeAiTranscript}...</p>
-            )}
+            <div style={{ padding: '4px 16px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {(() => {
+                const all = [];
+                const maxL = Math.max(realtimeUserTranscripts.length, realtimeAiTranscripts.length);
+                for (let i = 0; i < maxL; i++) {
+                  if (i < realtimeUserTranscripts.length) all.push({ t: 'u', text: realtimeUserTranscripts[i], i });
+                  if (i < realtimeAiTranscripts.length) all.push({ t: 'a', text: realtimeAiTranscripts[i], i });
+                }
+                return all.map((x, j) => (
+                  <div key={`${x.t}-${x.i}`} style={{ display: 'flex', justifyContent: x.t === 'u' ? 'flex-end' : 'flex-start' }}>
+                    <div style={{
+                      maxWidth: '82%',
+                      padding: '7px 12px',
+                      borderRadius: x.t === 'u' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
+                      background: x.t === 'u' ? 'linear-gradient(135deg, #0E7490 0%, #0891B2 100%)' : 'rgba(255,255,255,0.06)',
+                      border: x.t === 'u' ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                      fontSize: '0.78rem',
+                      lineHeight: '1.35',
+                      color: x.t === 'u' ? '#E0F2FE' : '#CBD5E1'
+                    }}>
+                      <span style={{ fontSize: '0.62rem', fontWeight: 600, color: x.t === 'u' ? 'rgba(224,242,254,0.55)' : 'rgba(148,163,184,0.6)', display: 'block', marginBottom: '1px' }}>
+                        {x.t === 'u' ? 'Tú' : 'MentorIA'}
+                      </span>
+                      {x.text}
+                    </div>
+                  </div>
+                ));
+              })()}
+              {realtimeAiTranscript && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ maxWidth: '82%', padding: '7px 12px', borderRadius: '12px 12px 12px 4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)', fontSize: '0.78rem', lineHeight: '1.35', color: '#94A3B8', fontStyle: 'italic' }}>
+                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(148,163,184,0.6)', display: 'block', marginBottom: '1px' }}>MentorIA</span>
+                    {realtimeAiTranscript}<span style={{ animation: 'rtBlinkI 1s infinite' }}>...</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
         {!showRealtimeTranscript && (realtimeUserTranscripts.length > 0 || realtimeAiTranscripts.length > 0) && (
-          <button onClick={() => setShowRealtimeTranscript(true)} style={{ position: 'fixed', bottom: '16px', right: '16px', background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '18px', padding: '6px 14px', color: '#94A3B8', fontSize: '0.75rem', cursor: 'pointer' }}>Transcripcion</button>
+          <button onClick={() => setShowRealtimeTranscript(true)} style={{ position: 'fixed', bottom: '16px', right: '16px', background: 'linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(51,65,85,0.95) 100%)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '20px', padding: '8px 14px', color: '#94A3B8', fontSize: '0.72rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', backdropFilter: 'blur(12px)', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Transcripción
+          </button>
         )}
 
         <style>{`
           @keyframes rtPulseI { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.05);opacity:0.8} }
           @keyframes rtWaveI { 0%,100%{transform:scaleY(0.3)} 50%{transform:scaleY(1)} }
+          @keyframes rtBlinkI { 0%,100%{opacity:1} 50%{opacity:0.3} }
         `}</style>
       </div>
     );
@@ -1471,9 +1510,15 @@ const handleModeChange = useCallback((newMode) => {
                 <>
                     <div className="mode-dropdown-overlay" onClick={() => setShowModeDropdown(false)} />
                     <div className="mode-dropdown-menu">
+                        {documentInfo?.modo_consulta !== 0 && parseInt(documentInfo?.modo_consulta) !== 0 && (
                         <button onClick={() => handleModeChange('consulta')} className="dropdown-item consulta"><span>💬</span> Consulta</button>
+                        )}
+                        {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
                         <button onClick={() => handleModeChange('mentor')} className="dropdown-item mentor"><span>👨‍🏫</span> Mentor</button>
+                        )}
+                        {documentInfo?.modo_evaluacion !== 0 && parseInt(documentInfo?.modo_evaluacion) !== 0 && (
                         <button onClick={() => handleModeChange('evaluacion')} className="dropdown-item evaluacion"><span>📝</span> Evaluación</button>
+                        )}
                     </div>
                 </>
             )}
@@ -1573,19 +1618,43 @@ const handleModeChange = useCallback((newMode) => {
                 </h2>
                 <p>Elige tu modo de aprendizaje:</p>
                 
-                <button onClick={() => startFirstInteraction('consulta')} className="mode-btn consulta">
-                  💬 Consulta Libre
-                </button>
-                
+                {documentInfo?.modo_consulta !== 0 && parseInt(documentInfo?.modo_consulta) !== 0 && (
+                  showConsultaSubmodes ? (
+                    <>
+                      <button onClick={() => startFirstInteraction('consulta')} className="mode-btn consulta">
+                        🧑 Conversación 1 a 1
+                      </button>
+                      <button onClick={() => startFirstInteraction('consulta_grupo')} className="mode-btn consulta" style={{ borderColor: '#8B5CF6' }}>
+                        👥 Modo Grupal
+                      </button>
+                      <button
+                        onClick={() => setShowConsultaSubmodes(false)}
+                        style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '0.75rem', cursor: 'pointer', padding: '2px 0', textAlign: 'center' }}
+                      >
+                        ← Volver
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => setShowConsultaSubmodes(true)} className="mode-btn consulta">
+                      💬 Consulta Libre
+                    </button>
+                  )
+                )}
+
+                {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
                 <button onClick={() => startFirstInteraction('mentor')} className="mode-btn mentor">
                   👨‍🏫 Mentor Guiado
                 </button>
-                
+                )}
+
+                {documentInfo?.modo_evaluacion !== 0 && parseInt(documentInfo?.modo_evaluacion) !== 0 && (
                 <button onClick={() => startFirstInteraction('evaluacion')} className="mode-btn evaluacion">
                   📝 Evaluación
                 </button>
+                )}
 
                 {/* Botón Modo Reto */}
+                {documentInfo?.modo_reto !== 0 && parseInt(documentInfo?.modo_reto) !== 0 && (
                 <button
                   onClick={() => retoState.tieneRetoPendiente && startFirstInteraction('reto')}
                   className={`mode-btn reto ${!retoState.tieneRetoPendiente ? 'disabled' : ''}`}
@@ -1602,6 +1671,7 @@ const handleModeChange = useCallback((newMode) => {
                     <span className="coming-soon-tag">Próximo: {retoState.proximoReto?.dia || 'Lun/Jue'}</span>
                   )}
                 </button>
+                )}
 
                 {/* Info: Realtime activado automáticamente */}
                 {isRealtimeSupported() && (

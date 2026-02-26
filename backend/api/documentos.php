@@ -77,6 +77,12 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             $max_intentos = 3;
         }
         
+        // Modos de aprendizaje (default: habilitados)
+        $modo_consulta = isset($_POST['modo_consulta']) ? (int)$_POST['modo_consulta'] : 1;
+        $modo_mentor = isset($_POST['modo_mentor']) ? (int)$_POST['modo_mentor'] : 1;
+        $modo_evaluacion = isset($_POST['modo_evaluacion']) ? (int)$_POST['modo_evaluacion'] : 1;
+        $modo_reto = isset($_POST['modo_reto']) ? (int)$_POST['modo_reto'] : 1;
+
         // Validar datos mínimos
         if (empty($titulo)) {
             http_response_code(400);
@@ -118,14 +124,18 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             $db->beginTransaction();
 
             // Insertar documento
-            $query = "INSERT INTO documentos (titulo, descripcion, contenido, imagen, created)
-                      VALUES (:titulo, :descripcion, :contenido, :imagen, NOW())";
-                      
+            $query = "INSERT INTO documentos (titulo, descripcion, contenido, imagen, modo_consulta, modo_mentor, modo_evaluacion, modo_reto, created)
+                      VALUES (:titulo, :descripcion, :contenido, :imagen, :modo_consulta, :modo_mentor, :modo_evaluacion, :modo_reto, NOW())";
+
             $stmt = $db->prepare($query);
             $stmt->bindParam(':titulo', $titulo);
             $stmt->bindParam(':descripcion', $descripcion);
             $stmt->bindParam(':contenido', $contenido);
             $stmt->bindParam(':imagen', $imagen_path);
+            $stmt->bindParam(':modo_consulta', $modo_consulta, PDO::PARAM_INT);
+            $stmt->bindParam(':modo_mentor', $modo_mentor, PDO::PARAM_INT);
+            $stmt->bindParam(':modo_evaluacion', $modo_evaluacion, PDO::PARAM_INT);
+            $stmt->bindParam(':modo_reto', $modo_reto, PDO::PARAM_INT);
 
             if (!$stmt->execute()) {
                 throw new Exception("Error al insertar documento");
@@ -352,12 +362,18 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
     $tiempo_respuesta_segundos = 60;
 }
     
+        // Modos de aprendizaje
+        $modo_consulta = isset($data['modo_consulta']) ? (int)$data['modo_consulta'] : 1;
+        $modo_mentor = isset($data['modo_mentor']) ? (int)$data['modo_mentor'] : 1;
+        $modo_evaluacion = isset($data['modo_evaluacion']) ? (int)$data['modo_evaluacion'] : 1;
+        $modo_reto = isset($data['modo_reto']) ? (int)$data['modo_reto'] : 1;
+
         if (!$id || !$titulo) {
             http_response_code(400);
             echo json_encode(["message" => "ID y título son obligatorios"]);
             exit();
         }
-        
+
         // Validar rangos
         if ($preguntas_por_evaluacion < 1 || $preguntas_por_evaluacion > 50) {
             $preguntas_por_evaluacion = 10;
@@ -376,15 +392,19 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             // Actualizar documento (incluir imagen si se proporciona)
             $imagen_update = isset($data['imagen']) ? $data['imagen'] : null;
             if ($imagen_update !== null) {
-                $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido, imagen = :imagen WHERE id = :id";
+                $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido, imagen = :imagen, modo_consulta = :modo_consulta, modo_mentor = :modo_mentor, modo_evaluacion = :modo_evaluacion, modo_reto = :modo_reto WHERE id = :id";
             } else {
-                $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido WHERE id = :id";
+                $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido, modo_consulta = :modo_consulta, modo_mentor = :modo_mentor, modo_evaluacion = :modo_evaluacion, modo_reto = :modo_reto WHERE id = :id";
             }
             $stmt = $db->prepare($query);
             $stmt->bindParam(':id', $id);
             $stmt->bindParam(':titulo', $titulo);
             $stmt->bindParam(':descripcion', $descripcion);
             $stmt->bindParam(':contenido', $contenido);
+            $stmt->bindParam(':modo_consulta', $modo_consulta, PDO::PARAM_INT);
+            $stmt->bindParam(':modo_mentor', $modo_mentor, PDO::PARAM_INT);
+            $stmt->bindParam(':modo_evaluacion', $modo_evaluacion, PDO::PARAM_INT);
+            $stmt->bindParam(':modo_reto', $modo_reto, PDO::PARAM_INT);
             if ($imagen_update !== null) {
                 $stmt->bindParam(':imagen', $imagen_update);
             }

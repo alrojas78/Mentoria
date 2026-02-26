@@ -19,6 +19,7 @@ import VoiceAssistantToggle from './components/VoiceAssistantToggle';
 
 // 🆕 NUEVO: Componente de notificación de sesión expirada
 import SessionExpiredNotification from './components/SessionExpiredNotification';
+import NotificacionModal from './components/NotificacionModal';
 
 // Páginas
 import HomePage from './pages/HomePage';
@@ -201,6 +202,7 @@ const AppContent = () => {
       
       {/* 🆕 NUEVO: Componente de notificación de sesión expirada */}
       <SessionExpiredNotification />
+      <NotificacionModal />
       
       {/* Footer condicional - NO se muestra en rutas de consulta */}
       {!shouldHideLayout && <Footer />}

@@ -9,3 +9,8 @@ backend/logs/
 *.log
 .DS_Store
 .claude/
+docs/PROJECT_CONTEXT.md
+docs/operatixssh.pem
+docs/Word/
+*.pem
+*.docx
