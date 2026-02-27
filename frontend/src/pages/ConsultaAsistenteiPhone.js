@@ -1514,7 +1514,7 @@ const handleModeChange = useCallback((newMode) => {
                         <button onClick={() => handleModeChange('consulta')} className="dropdown-item consulta"><span>💬</span> Consulta</button>
                         )}
                         {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
-                        <button onClick={() => handleModeChange('mentor')} className="dropdown-item mentor"><span>👨‍🏫</span> Mentor</button>
+                        <button onClick={() => navigate(`/mentor/${documentId}`)} className="dropdown-item mentor"><span>👨‍🏫</span> Mentor</button>
                         )}
                         {documentInfo?.modo_evaluacion !== 0 && parseInt(documentInfo?.modo_evaluacion) !== 0 && (
                         <button onClick={() => handleModeChange('evaluacion')} className="dropdown-item evaluacion"><span>📝</span> Evaluación</button>
@@ -1642,7 +1642,7 @@ const handleModeChange = useCallback((newMode) => {
                 )}
 
                 {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
-                <button onClick={() => startFirstInteraction('mentor')} className="mode-btn mentor">
+                <button onClick={() => navigate(`/mentor/${documentId}`)} className="mode-btn mentor">
                   👨‍🏫 Mentor Guiado
                 </button>
                 )}

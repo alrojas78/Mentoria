@@ -2002,29 +2002,25 @@ const handleCloseVideo = (lastTime, duration) => {
       <span>Consulta</span>
     </button>
     
-    {/* Botón Modo Mentor - CORREGIDO */}
+    {/* Botón Modo Mentor → Navega al Mentor 2.0 */}
     {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
     <button
-      onClick={() => handleModeChange('mentor')}
-      disabled={isWaitingForResponse || isSpeaking}
+      onClick={() => navigate(`/mentor/${documentId}`)}
       style={{
         padding: '10px 16px',
         borderRadius: '12px',
-        border: currentMode === 'mentor' ? '2px solid #34D399' : '2px solid rgba(255, 255, 255, 0.1)',
-        background: currentMode === 'mentor' ? 'linear-gradient(135deg, #10B981 0%, #34D399 100%)' : 'rgba(255, 255, 255, 0.05)',
+        border: '2px solid rgba(255, 255, 255, 0.1)',
+        background: 'rgba(255, 255, 255, 0.05)',
         color: 'white',
         fontSize: '0.8rem',
-        fontWeight: currentMode === 'mentor' ? '600' : '500',
-        cursor: (isWaitingForResponse || isSpeaking) ? 'not-allowed' : 'pointer',
+        fontWeight: '500',
+        cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         gap: '6px',
-        transition: 'all 0.3s ease',
-        opacity: (isWaitingForResponse || isSpeaking) ? 0.5 : 1,
-        boxShadow: currentMode === 'mentor' ? '0 4px 15px rgba(52, 211, 153, 0.4)' : 'none',
-        transform: currentMode === 'mentor' ? 'scale(1.05)' : 'scale(1)'
+        transition: 'all 0.3s ease'
       }}
-      title="Aprendizaje guiado paso a paso"
+      title="Ir al Mentor 2.0 — Video + Quiz + Chat IA"
     >
       <span style={{ fontSize: '1rem' }}>👨‍🏫</span>
       <span>Mentor</span>
@@ -2125,40 +2121,33 @@ Modos ▾
       )}
     </button>
 
-    {/* Botón Modo Mentor */}
+    {/* Botón Modo Mentor → Navega al Mentor 2.0 */}
     {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
     <button
       onClick={() => {
-        handleModeChange('mentor');
         setShowModeDropdown(false);
+        navigate(`/mentor/${documentId}`);
       }}
-      disabled={isWaitingForResponse || isSpeaking}
       style={{
         width: '100%',
         padding: '12px 16px',
         borderRadius: '8px',
         border: 'none',
-        background: currentMode === 'mentor'
-          ? 'linear-gradient(135deg, #10B981 0%, #34D399 100%)'
-          : 'transparent',
+        background: 'transparent',
         color: 'white',
         fontSize: '0.9rem',
-        fontWeight: currentMode === 'mentor' ? '600' : '500',
-        cursor: (isWaitingForResponse || isSpeaking) ? 'not-allowed' : 'pointer',
+        fontWeight: '500',
+        cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
         transition: 'all 0.2s ease',
-        opacity: (isWaitingForResponse || isSpeaking) ? 0.5 : 1,
         marginBottom: '4px',
         textAlign: 'left'
       }}
     >
       <span style={{ fontSize: '1.2rem' }}>👨‍🏫</span>
       <span>Modo Mentor</span>
-      {currentMode === 'mentor' && (
-        <span style={{ marginLeft: 'auto', fontSize: '1rem' }}>✓</span>
-      )}
     </button>
     )}
 
@@ -2398,16 +2387,16 @@ Modos ▾
           )
         )}
 
-        {/* Botón Modo Mentor */}
+        {/* Botón Modo Mentor → Navega al Mentor 2.0 */}
         {documentInfo?.modo_mentor !== 0 && parseInt(documentInfo?.modo_mentor) !== 0 && (
         <button
           className="mode-button mentor"
-          onClick={() => startFirstInteraction('mentor')}
+          onClick={() => navigate(`/mentor/${documentId}`)}
         >
           <div className="mode-button-icon">👨‍🏫</div>
           <div className="mode-button-content">
             <h3>Modo Mentor</h3>
-            <p>Aprendizaje guiado paso a paso siguiendo un programa estructurado.</p>
+            <p>Aprendizaje guiado con video, quiz y chat IA integrado.</p>
           </div>
         </button>
         )}
