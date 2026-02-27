@@ -22,6 +22,10 @@ $userData = AuthMiddleware::requireAuth();
 $input = json_decode(file_get_contents('php://input'), true);
 $documentId = $input['document_id'] ?? null;
 $mode = $input['mode'] ?? 'consulta'; // consulta, mentor, evaluacion
+$videoId = $input['video_id'] ?? null;
+$videoTitle = $input['video_title'] ?? null;
+$lessonContext = $input['lesson_context'] ?? null;
+$currentTime = $input['current_time'] ?? 0;
 
 // Get database connection
 $database = new Database();
@@ -31,13 +35,13 @@ $db = $database->getConnection();
 $systemConfig = new SystemConfig($db);
 $voiceMode = 'realtime'; // default
 $realtimeVoice = 'sage'; // default
-$realtimeModel = 'gpt-4o-realtime-preview-2024-12-17';
+$realtimeModel = 'gpt-4o-realtime-preview';
 
 if ($systemConfig->getByKey('voice_service')) {
     $voiceConfig = json_decode($systemConfig->config_value, true);
     $voiceMode = $voiceConfig['voice_mode'] ?? 'realtime';
     $realtimeVoice = $voiceConfig['realtime_voice'] ?? 'sage';
-    $realtimeModel = $voiceConfig['realtime_model'] ?? 'gpt-4o-realtime-preview-2024-12-17';
+    $realtimeModel = $voiceConfig['realtime_model'] ?? 'gpt-4o-realtime-preview';
 }
 
 // If voice_mode is not realtime, return config so frontend knows to use text mode
@@ -135,14 +139,35 @@ if (mb_strlen($medicalGlossary) > 2000) {
 }
 
 // Build system instructions based on mode
-$systemInstructions = buildSystemInstructions($mode, $documentContext, $medicalGlossary, $toolDefinition !== null);
+$videoContext = null;
+if ($mode === 'mentor' && ($videoId || $videoTitle)) {
+    $videoContext = [
+        'video_id' => $videoId,
+        'video_title' => $videoTitle,
+        'lesson_context' => $lessonContext,
+        'current_time' => $currentTime
+    ];
+}
+$systemInstructions = buildSystemInstructions($mode, $documentContext, $medicalGlossary, $toolDefinition !== null, $videoContext);
 
 // Final safety check: hard cap at ~57000 chars (~16300 tokens)
 if (mb_strlen($systemInstructions) > 57000) {
     $systemInstructions = mb_substr($systemInstructions, 0, 57000);
 }
 
-// Create client secret with OpenAI GA endpoint (body vacío)
+// Create client secret with OpenAI GA endpoint
+$clientSecretBody = json_encode([
+    'session' => [
+        'type' => 'realtime',
+        'model' => $realtimeModel,
+        'audio' => [
+            'output' => [
+                'voice' => $realtimeVoice
+            ]
+        ]
+    ]
+]);
+
 $ch = curl_init('https://api.openai.com/v1/realtime/client_secrets');
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
@@ -151,7 +176,7 @@ curl_setopt_array($ch, [
         'Authorization: Bearer ' . OPENAI_API_KEY,
         'Content-Type: application/json'
     ],
-    CURLOPT_POSTFIELDS => '{}'
+    CURLOPT_POSTFIELDS => $clientSecretBody
 ]);
 
 $response = curl_exec($ch);
@@ -159,9 +184,12 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($httpCode !== 200) {
+    error_log("Realtime client_secrets failed: HTTP {$httpCode}, model: {$realtimeModel}, response: {$response}");
     http_response_code(500);
     echo json_encode([
         'error' => 'Error creando client secret Realtime',
+        'http_code' => $httpCode,
+        'model' => $realtimeModel,
         'details' => json_decode($response, true)
     ]);
     exit;
@@ -194,7 +222,7 @@ echo json_encode($responseData);
 
 // === HELPER FUNCTIONS ===
 
-function buildSystemInstructions($mode, $documentContext, $glossary, $hasBloques = false) {
+function buildSystemInstructions($mode, $documentContext, $glossary, $hasBloques = false, $videoContext = null) {
     $baseInstructions = "Eres MentorIA, un asistente de mentoria educativa medica.
 Hablas espanol latinoamericano de forma clara y profesional.
 Tus respuestas son concisas y directas, ideales para conversacion por voz.
@@ -229,13 +257,29 @@ Busca por cualquier termino: estudios, farmacos, temas, palabras clave. No neces
 
     switch ($mode) {
         case 'mentor':
-            return $baseInstructions . "\n\nMODO MENTOR ACTIVO:
-- Guia al estudiante a traves del contenido de forma estructurada
-- Presenta videos y lecciones en orden
-- Haz preguntas de verificacion despues de cada concepto
-- Se paciente y ofrece explicaciones adicionales si es necesario
-- Usa un tono amigable pero profesional
-- Saluda al estudiante y pregunta en que punto del material quiere continuar";
+            $mentorPrompt = "\n\nMODO MENTOR - LECCION EN VIDEO:";
+            if ($videoContext) {
+                if ($videoContext['video_title']) {
+                    $mentorPrompt .= "\nVideo actual: \"{$videoContext['video_title']}\"";
+                }
+                if ($videoContext['lesson_context']) {
+                    $mentorPrompt .= "\nLeccion: {$videoContext['lesson_context']}";
+                }
+                if ($videoContext['current_time'] > 0) {
+                    $mins = floor($videoContext['current_time'] / 60);
+                    $secs = $videoContext['current_time'] % 60;
+                    $mentorPrompt .= "\nEl estudiante va en el minuto {$mins}:{$secs} del video";
+                }
+            }
+            $mentorPrompt .= "
+- El estudiante esta viendo un video de este programa educativo y tiene preguntas
+- Responde basandote en el contenido del documento Y el contexto del video actual
+- Si el estudiante pregunta algo del video, responde con informacion relevante de ese tema especifico
+- Se conciso y directo, ideal para conversacion por voz mientras ve el video
+- No repitas el contenido del video, complementa con informacion adicional o aclaraciones
+- Si preguntan algo no relacionado al video actual, puedes responder pero redirige al tema de la leccion
+- Usa un tono amigable y profesional";
+            return $baseInstructions . $mentorPrompt;
 
         case 'evaluacion':
             return $baseInstructions . "\n\nMODO EVALUACION ACTIVO:

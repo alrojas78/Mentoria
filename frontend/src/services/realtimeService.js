@@ -29,6 +29,10 @@ export class RealtimeSession {
   constructor(options = {}) {
     this.documentId = options.documentId || null;
     this.mode = options.mode || 'consulta';
+    this.videoId = options.videoId || null;
+    this.videoTitle = options.videoTitle || null;
+    this.lessonContext = options.lessonContext || null;
+    this.currentTime = options.currentTime || 0;
 
     // Callbacks
     this.onStateChange = options.onStateChange || (() => {});
@@ -51,7 +55,7 @@ export class RealtimeSession {
     // Config from backend
     this._instructions = '';
     this._voice = 'sage';
-    this._model = 'gpt-4o-realtime-preview-2024-12-17';
+    this._model = 'gpt-4o-realtime-preview';
     this._tools = null;
     this._documentId = null;
 
@@ -74,10 +78,15 @@ export class RealtimeSession {
 
     try {
       // 1. Obtener client_secret del backend
-      const response = await axios.post(`${API_BASE_URL}/realtime-session.php`, {
+      const postData = {
         document_id: this.documentId,
         mode: this.mode
-      });
+      };
+      if (this.videoId) postData.video_id = this.videoId;
+      if (this.videoTitle) postData.video_title = this.videoTitle;
+      if (this.lessonContext) postData.lesson_context = this.lessonContext;
+      if (this.currentTime) postData.current_time = this.currentTime;
+      const response = await axios.post(`${API_BASE_URL}/realtime-session.php`, postData);
 
       if (!response.data?.success) {
         throw new Error('No se pudo crear la sesión Realtime');
@@ -97,7 +106,7 @@ export class RealtimeSession {
       // Guardar config para session.update
       this._instructions = instructions || '';
       this._voice = voice || 'sage';
-      this._model = model || 'gpt-4o-realtime-preview-2024-12-17';
+      this._model = model || 'gpt-4o-realtime-preview';
       this._tools = tools || null;
       this._documentId = document_id || this.documentId;
 
@@ -116,7 +125,7 @@ export class RealtimeSession {
       this.ws.onopen = () => this._onWSOpen();
       this.ws.onmessage = (event) => this._onWSMessage(event);
       this.ws.onerror = (event) => this._onWSError(event);
-      this.ws.onclose = () => this._onWSClose();
+      this.ws.onclose = (event) => this._onWSClose(event);
 
     } catch (err) {
       console.error('Error conectando Realtime:', err);
@@ -174,13 +183,14 @@ export class RealtimeSession {
 
   _onWSError(event) {
     console.error('WebSocket error:', event);
+    console.error('WebSocket readyState:', this.ws?.readyState, 'model:', this._model);
     this._setState(SESSION_STATES.ERROR);
     this.onError('Error en la conexión WebSocket');
   }
 
-  _onWSClose() {
+  _onWSClose(event) {
     if (!this._destroyed) {
-      console.log('WebSocket cerrado inesperadamente');
+      console.log('WebSocket cerrado inesperadamente, code:', event?.code, 'reason:', event?.reason);
       this._setState(SESSION_STATES.DISCONNECTED);
     }
   }

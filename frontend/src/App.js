@@ -45,6 +45,7 @@ import deviceDetector from './utils/deviceDetector';
 import DocumentAnalytics from './pages/DocumentAnalytics';
 
 import SpeechProgressIndicator from './components/SpeechProgressIndicator';
+import MentorPage from './pages/MentorPage';
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }) => {
@@ -62,7 +63,7 @@ const AppContent = () => {
   const location = useLocation();
   
   // Rutas donde NO queremos mostrar Header ni Footer
-  const hideLayoutRoutes = ['/consulta/', '/consultaiphone/'];
+  const hideLayoutRoutes = ['/consulta/', '/consultaiphone/', '/mentor/'];
   const shouldHideLayout = hideLayoutRoutes.some(route =>
     location.pathname.includes(route)
   );
@@ -153,6 +154,15 @@ const AppContent = () => {
               </ProtectedRoute>
             } 
           />
+
+<Route
+  path="/mentor/:documentId"
+  element={
+    <ProtectedRoute>
+      <MentorPage />
+    </ProtectedRoute>
+  }
+/>
 
 <Route
   path="/consulta/:documentId"

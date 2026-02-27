@@ -10,6 +10,7 @@ backend/logs/
 .DS_Store
 .claude/
 docs/PROJECT_CONTEXT.md
+docs/gitinfo.md
 docs/operatixssh.pem
 docs/Word/
 *.pem

@@ -256,6 +256,28 @@ const AnalyticsBtn = styled.button`
   }
 `;
 
+const MentorLink = styled(Link)`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.7rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.08);
+  transition: all 0.25s ease;
+
+  &:hover {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: #F59E0B;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+  }
+`;
+
 const Icon = ({ path, size = 20 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path d={path} />
@@ -388,6 +410,14 @@ const DocumentosPage = () => {
                       <Icon path={ICONS.consult} size={18} />
                       Consultar
                     </ConsultLink>
+                    {Number(doc.modo_mentor) === 1 && (
+                      <MentorLink to={`/mentor/${doc.id}`} title="Modo Mentor 2.0">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/>
+                        </svg>
+                        Mentor
+                      </MentorLink>
+                    )}
                     {canViewAnalytics && (
                       <AnalyticsBtn
                         onClick={() => handleAnalytics(doc.id)}

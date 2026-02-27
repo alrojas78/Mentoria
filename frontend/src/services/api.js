@@ -627,6 +627,47 @@ export const notificacionService = {
   marcarLeida: (notificacionId) => axios.post(`${API_BASE_URL}/notificaciones.php`, { notificacion_id: notificacionId }),
 };
 
+// Servicio Mentor 2.0 (LMS híbrido)
+export const mentor2Service = {
+  start: (documentId) =>
+    axios.get(`${API_BASE_URL}/mentor/start.php`, { params: { document_id: documentId } }),
+
+  advance: (documentId) =>
+    axios.post(`${API_BASE_URL}/mentor/advance.php`, { document_id: documentId }),
+
+  chat: ({ documentId, videoId, pregunta, currentTime }) =>
+    axios.post(`${API_BASE_URL}/mentor/chat.php`, {
+      document_id: documentId,
+      video_id: videoId,
+      pregunta,
+      current_time: currentTime
+    }),
+
+  generateQuiz: (documentId, videoId) =>
+    axios.post(`${API_BASE_URL}/mentor/quiz.php`, {
+      action: 'generate',
+      document_id: documentId,
+      video_id: videoId
+    }),
+
+  evaluateQuiz: (documentId, videoId, numeroPregunta, respuesta) =>
+    axios.post(`${API_BASE_URL}/mentor/quiz.php`, {
+      action: 'evaluate',
+      document_id: documentId,
+      video_id: videoId,
+      numero_pregunta: numeroPregunta,
+      respuesta
+    }),
+
+  saveVideoProgress: (data) =>
+    axios.post(`${API_BASE_URL}/video-mentor-progress.php`, data),
+
+  getVideoForLesson: (documentId, moduleNumber, lessonNumber) =>
+    axios.get(`${API_BASE_URL}/mentor/video-leccion.php`, {
+      params: { document_id: documentId, modulo: moduleNumber, leccion: lessonNumber }
+    }),
+};
+
 // Servicio de sesión Realtime (OpenAI Realtime API)
 export const realtimeSessionService = {
   createSession: (documentId, mode = 'consulta') => {
@@ -661,5 +702,6 @@ export default {
   attachments: attachmentService,
   transcriptions: transcriptionService,
   reto: retoService,  // Servicio de reto semanal
-  notificaciones: notificacionService
+  notificaciones: notificacionService,
+  mentor2: mentor2Service
 };
