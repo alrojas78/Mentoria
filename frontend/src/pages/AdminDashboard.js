@@ -12,6 +12,7 @@ import AdminGruposContenido from '../components/admin/AdminGruposContenido';
 import AdminDocumentosPage from './admin/AdminDocumentosPage';
 import AdminNotificaciones from '../components/admin/AdminNotificaciones';
 import VoiceServiceAdmin from '../components/admin/VoiceServiceAdmin';
+import AdminSeguimiento from '../components/admin/AdminSeguimiento';
 
 const Container = styled.div`
   max-width: 1400px;
@@ -65,6 +66,7 @@ const tabs = [
   { id: 'users', label: 'Usuarios' },
   { id: 'groups', label: 'Grupos de Contenido' },
   { id: 'documents', label: 'Documentos' },
+  { id: 'seguimiento', label: 'Seguimiento' },
   { id: 'notificaciones', label: 'Notificaciones' },
   { id: 'config', label: 'Configuración' },
 ];
@@ -99,6 +101,7 @@ const AdminDashboard = () => {
       {activeTab === 'users' && <AdminUserManagement />}
       {activeTab === 'groups' && <AdminGruposContenido />}
       {activeTab === 'documents' && <AdminDocumentosPage embedded />}
+      {activeTab === 'seguimiento' && <AdminSeguimiento />}
       {activeTab === 'notificaciones' && <AdminNotificaciones />}
       {activeTab === 'config' && <VoiceServiceAdmin />}
     </Container>

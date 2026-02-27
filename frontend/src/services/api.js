@@ -627,6 +627,55 @@ export const notificacionService = {
   marcarLeida: (notificacionId) => axios.post(`${API_BASE_URL}/notificaciones.php`, { notificacion_id: notificacionId }),
 };
 
+// Servicio de Seguimiento (Cohortes, Contactos, Matrículas)
+export const seguimientoService = {
+  // Cohortes
+  getCohortes: () => axios.get(`${API_BASE_URL}/admin/cohortes.php`),
+  getCohorte: (id) => axios.get(`${API_BASE_URL}/admin/cohortes.php?id=${id}`),
+  createCohorte: (data) => axios.post(`${API_BASE_URL}/admin/cohortes.php`, data),
+  updateCohorte: (data) => axios.put(`${API_BASE_URL}/admin/cohortes.php`, data),
+  deleteCohorte: (id) => axios.delete(`${API_BASE_URL}/admin/cohortes.php?id=${id}`),
+
+  // Contactos
+  getContactos: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return axios.get(`${API_BASE_URL}/admin/contactos.php?${query}`);
+  },
+  createContacto: (data) => axios.post(`${API_BASE_URL}/admin/contactos.php`, data),
+  updateContacto: (data) => axios.put(`${API_BASE_URL}/admin/contactos.php`, data),
+  deleteContacto: (id) => axios.delete(`${API_BASE_URL}/admin/contactos.php?id=${id}`),
+  importarContactos: (data) => axios.post(`${API_BASE_URL}/admin/contactos.php`, { importar: true, ...data }),
+
+  // Matrículas
+  getMatriculas: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return axios.get(`${API_BASE_URL}/admin/matriculas.php?${query}`);
+  },
+  createMatricula: (data) => axios.post(`${API_BASE_URL}/admin/matriculas.php`, data),
+  updateMatricula: (data) => axios.put(`${API_BASE_URL}/admin/matriculas.php`, data),
+  deleteMatricula: (id) => axios.delete(`${API_BASE_URL}/admin/matriculas.php?id=${id}`),
+  asignarMasivo: (data) => axios.post(`${API_BASE_URL}/admin/matriculas.php`, { asignar_masivo: true, ...data }),
+
+  // Reglas de recordatorio
+  getReglas: (cohorteId) => axios.get(`${API_BASE_URL}/admin/reglas-recordatorio.php?cohorte_id=${cohorteId}`),
+  updateReglas: (data) => axios.put(`${API_BASE_URL}/admin/reglas-recordatorio.php`, data),
+
+  // Plantillas
+  getPlantillas: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return axios.get(`${API_BASE_URL}/admin/plantillas-mensaje.php?${query}`);
+  },
+  createPlantilla: (data) => axios.post(`${API_BASE_URL}/admin/plantillas-mensaje.php`, data),
+  updatePlantilla: (data) => axios.put(`${API_BASE_URL}/admin/plantillas-mensaje.php`, data),
+  deletePlantilla: (id) => axios.delete(`${API_BASE_URL}/admin/plantillas-mensaje.php?id=${id}`),
+
+  // Estadísticas
+  getStats: (cohorteId) => axios.get(`${API_BASE_URL}/admin/seguimiento-stats.php${cohorteId ? '?cohorte_id=' + cohorteId : ''}`),
+
+  // Documentos (para selector de cohortes)
+  getDocumentos: () => axios.get(`${API_BASE_URL}/documentos.php`),
+};
+
 // Servicio Mentor 2.0 (LMS híbrido)
 export const mentor2Service = {
   start: (documentId) =>
@@ -703,5 +752,6 @@ export default {
   transcriptions: transcriptionService,
   reto: retoService,  // Servicio de reto semanal
   notificaciones: notificacionService,
-  mentor2: mentor2Service
+  mentor2: mentor2Service,
+  seguimiento: seguimientoService
 };

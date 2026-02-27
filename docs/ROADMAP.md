@@ -1,6 +1,6 @@
 # Mentoria 4.0 - Roadmap de Actualización Mayor
 
-## Estado actual: Fase 6 completada — Correcciones + Notificaciones | Fase 7 en planificación — Mentor 2.0
+## Estado actual: Fase 7 implementada (Mentor 2.0) | Fase 8 en progreso (Sistema de Seguimiento)
 
 ---
 
@@ -348,8 +348,8 @@ El documento VOZAMA fue reestructurado en 10 bloques como modelo para futuros do
 
 ---
 
-### Fase 7: Mentor 2.0 — Híbrido LMS + IA ⏳
-**Complejidad: MUY ALTA | Estado: En planificación**
+### Fase 7: Mentor 2.0 — Híbrido LMS + IA ✅
+**Complejidad: MUY ALTA | Completada: 2026-02-27**
 
 **Problema identificado (datos reales AdiumAteneo):**
 - 23 usuarios inscritos en mentor, solo 2 completaron (8.7% completion rate)
@@ -371,47 +371,65 @@ El documento VOZAMA fue reestructurado en 10 bloques como modelo para futuros do
 
 **Sub-fases:**
 
-#### Fase 7.1: Eliminar fricción del flujo actual
-- [ ] Eliminar modal de confirmación pre-video ("¿Estás listo?")
-- [ ] Video abre directamente al avanzar de lección
-- [ ] Evaluación IA real para comprensión (reemplazar pattern matching)
-- [ ] Botones "Anterior" / "Siguiente" explícitos
+**Implementación completada:**
+- [x] MentorPage.js: componente único responsive (sidebar + video + chat)
+- [x] Sidebar colapsable + posición izquierda/derecha con persistencia localStorage
+- [x] Video Vimeo embebido directo (sin popups ni modales de confirmación)
+- [x] Chat IA contextual con GPT-4o (preguntas sobre video actual)
+- [x] Evaluación IA real: quiz 3 preguntas post-video con evaluación semántica
+- [x] Navegación: botones Anterior/Siguiente, bloqueo de lecciones futuras
+- [x] Backend modular: /api/mentor/start.php, advance.php, chat.php, quiz.php
+- [x] Progreso robusto: CASE WHEN timestamp_maximo >= 90% duración = completado
+- [x] Modales de consulta redirigen al nuevo Mentor 2.0
+- [x] Desplegado en producción (Adium)
 
-#### Fase 7.2: Nueva UI — Video + Chat en página
-- [ ] Crear componente `MentorPage.js` (único, responsive)
-- [ ] Layout: sidebar (módulos) + área principal (video embebido + chat)
-- [ ] Sidebar: árbol de módulos/lecciones con estados (✅ ▶ 🔒 ○)
-- [ ] Navegación libre a lecciones completadas, bloqueo de futuras
-- [ ] Video Vimeo embebido con Player API (sin popup)
-- [ ] Chat contextual debajo del video
+**Archivos nuevos:**
+- `frontend/src/pages/MentorPage.js` (~1938 líneas)
+- `backend/api/mentor/start.php`
+- `backend/api/mentor/advance.php`
+- `backend/api/mentor/chat.php`
+- `backend/api/mentor/quiz.php`
 
-#### Fase 7.3: Habilitar Realtime en mentor
-- [ ] Chat de mentor usa WebSocket realtime cuando disponible
-- [ ] Fallback a flujo texto si realtime no disponible
-- [ ] Pausar realtime durante reproducción de video
+**Archivos modificados:**
+- `frontend/src/App.js` (ruta /mentor/:documentId)
+- `frontend/src/pages/DocumentosPage.js` (botón Mentor)
+- `frontend/src/pages/ConsultaAsistentePage.js` (redirect a Mentor 2.0)
+- `frontend/src/pages/ConsultaAsistenteiPhone.js` (redirect a Mentor 2.0)
+- `frontend/src/services/api.js` (mentor2Service)
 
-#### Fase 7.4: Backend modular
-- [ ] Crear endpoints separados: `/api/mentor/start`, `/api/mentor/lesson/:id`, `/api/mentor/progress`, `/api/mentor/evaluate`
-- [ ] Extraer lógica de mentor de `consulta.php` (~1100 líneas)
-- [ ] Tabla `doc_mentor_estructura` separada (no denormalizar en progreso)
-- [ ] Campo `lesson_status` JSON en vez de `notas_progreso` append-only
+---
 
-#### Fase 7.5: Eliminar mentor autogenerativo
-- [ ] Documentos sin videos → solo modo consulta con bloques temáticos
-- [ ] Eliminar `createMentorStructure()` y funciones AI mentor de consulta.php
-- [ ] Mentor 2.0 solo para documentos con videos estructurados
+### Fase 8: Sistema de Seguimiento y Notificaciones ⏳
+**Complejidad: ALTA | Estado: Fases 8.1-8.2 completadas**
 
-**Entorno de desarrollo:** mentoria.ateneo.co (`/var/www/voicemed/`)
-**Aplicar a producción:** adium.ateneomentoria.com (`/var/www/adium/`) después de aprobación
+Ver detalle completo en `docs/FASE-N-SEGUIMIENTO.md`
+
+#### Fase 8.1: Base de Datos ✅
+- [x] 7 tablas: cohortes, contactos, matriculas, reglas_recordatorio, plantillas_mensaje, seguimiento_log, campanas_operatix
+- [x] 10 plantillas seed, campos institucion/convenio, rol_asignar en cohortes
+
+#### Fase 8.2: Admin UI ✅
+- [x] Tab "Seguimiento" en AdminDashboard con 6 sub-tabs
+- [x] 6 endpoints PHP backend completos
+- [x] CRUD Cohortes (vinculado a documentos + rol auto-asignado)
+- [x] CRUD Contactos + importación CSV masiva
+- [x] Gestión de matrículas con cambio de estado
+- [x] Configuración de reglas de recordatorio por cohorte
+- [x] CRUD de plantillas de mensaje con variables
+
+#### Fase 8.3: Motor de Email (AWS SES) — PENDIENTE
+#### Fase 8.4: Motor de Reglas + Cron — PENDIENTE
+#### Fase 8.5: Dashboard Avanzado — PENDIENTE
+#### Fase 8.6: Integración Operatix (WhatsApp + Llamadas) — PENDIENTE
 
 ---
 
 ## Orden de ejecución
 
 ```
-Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 4 ✅ → Fase 4.1 ✅ → Fase 4.2 ✅ → Fase 5 ✅ → Fase 6 ✅ → Fase 7 ⏳
- roles      imágenes     admin       realtime     fix GA       bloques      admin v2    fixes+notif  Mentor 2.0
- (ALTA)     (MEDIA)     (MEDIA)      (ALTA)      (ALTA)       (ALTA)       (ALTA)      (MEDIA)      (MUY ALTA)
+Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 4 ✅ → Fase 4.1 ✅ → Fase 4.2 ✅ → Fase 5 ✅ → Fase 6 ✅ → Fase 7 ✅ → Fase 8 ⏳
+ roles      imágenes     admin       realtime     fix GA       bloques      admin v2    fixes+notif  Mentor 2.0   Seguimiento
+ (ALTA)     (MEDIA)     (MEDIA)      (ALTA)      (ALTA)       (ALTA)       (ALTA)      (MEDIA)      (MUY ALTA)   (ALTA)
 ```
 
 ## Verificación por fase
@@ -426,9 +444,10 @@ Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 4 ✅ → Fase 4.1 ✅ → Fas
 | **4.2** | ✅ | VOZAMA con bloques → resumen en instructions → preguntar detalle → AI invoca obtener_bloque → responde con info completa |
 | **5** | ✅ | Panel admin consolidado → 5 tabs → grupos de contenido CRUD → registro con dropdown → código legacy eliminado |
 | **6** | ✅ | Notificaciones admin→usuario, analytics reales, correcciones de progreso y URLs |
-| **7** | ⏳ | Mentor 2.0: video embebido + sidebar LMS + chat IA + realtime voice + componente único |
+| **7** | ✅ | Mentor 2.0: video embebido + sidebar colapsable + chat IA + quiz semántico + desplegado en Adium |
+| **8** | ⏳ | Seguimiento: DB (7 tablas) + Admin UI (6 sub-tabs) completados. Pendiente: email, cron, Operatix |
 
 ---
 
-*Última actualización: 2026-02-26*
+*Última actualización: 2026-02-27*
 *Cada fase se documenta en detalle en su archivo `FASE-N.md` correspondiente*
