@@ -1644,9 +1644,19 @@ const MentorPage = () => {
                 title={sidebarRight ? 'Mover sidebar a la izquierda' : 'Mover sidebar a la derecha'}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                  <polyline points="21 18 15 12 21 6" />
-                  <line x1="3" y1="6" x2="3" y2="18" />
+                  {sidebarRight ? (
+                    <>
+                      <polyline points="15 18 9 12 15 6" />
+                      <polyline points="21 18 15 12 21 6" />
+                      <line x1="3" y1="6" x2="3" y2="18" />
+                    </>
+                  ) : (
+                    <>
+                      <polyline points="9 18 15 12 9 6" />
+                      <polyline points="3 18 9 12 3 6" />
+                      <line x1="21" y1="6" x2="21" y2="18" />
+                    </>
+                  )}
                 </svg>
               </SidebarAction>
             </SidebarHeaderRow>
@@ -1735,6 +1745,13 @@ const MentorPage = () => {
               <ThemeIcon $side="left" $visible={lightMode}>&#9728;</ThemeIcon>
               <ThemeIcon $side="right" $visible={!lightMode}>&#9789;</ThemeIcon>
             </ThemeToggle>
+            {mentorData?.document_logo && (
+              <img
+                src={`https://mentoria.ateneo.co/backend/${mentorData.document_logo}`}
+                alt=""
+                style={{ height: '40px', objectFit: 'contain', flexShrink: 0 }}
+              />
+            )}
             <VideoTitle>
               {videoActual?.titulo_completo || 'Cargando...'}
             </VideoTitle>

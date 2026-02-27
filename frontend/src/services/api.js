@@ -377,6 +377,15 @@ updateDocumento: (data) => {
     });
   },
 
+  // Subir/actualizar logo de un documento
+  uploadDocumentoLogo: (documentId, file) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return axios.patch(`${API_BASE_URL}/documentos.php?id=${documentId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
   // Eliminar un documento
   deleteDocumento: (id) => {
     return axios.delete(`${API_BASE_URL}/documentos.php?id=${id}`);

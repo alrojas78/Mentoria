@@ -118,20 +118,49 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             }
         }
 
+        // Manejar upload de logo
+        $logo_path = null;
+        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['logo'];
+            $allowed_types = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+            $max_size = 1 * 1024 * 1024; // 1MB
+
+            if (!in_array($file['type'], $allowed_types)) {
+                http_response_code(400);
+                echo json_encode(["message" => "Tipo de logo no permitido. Use JPEG, PNG, WebP o SVG."]);
+                exit();
+            }
+            if ($file['size'] > $max_size) {
+                http_response_code(400);
+                echo json_encode(["message" => "El logo excede el tamaño máximo de 1MB."]);
+                exit();
+            }
+
+            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $safe_name = 'logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+            $upload_dir = __DIR__ . '/../uploads/documentos/';
+            $dest = $upload_dir . $safe_name;
+
+            if (move_uploaded_file($file['tmp_name'], $dest)) {
+                $logo_path = 'uploads/documentos/' . $safe_name;
+            }
+        }
+
         // Insertar documento con configuración de evaluación
         try {
             // Iniciar transacción
             $db->beginTransaction();
 
             // Insertar documento
-            $query = "INSERT INTO documentos (titulo, descripcion, contenido, imagen, modo_consulta, modo_mentor, modo_evaluacion, modo_reto, created)
-                      VALUES (:titulo, :descripcion, :contenido, :imagen, :modo_consulta, :modo_mentor, :modo_evaluacion, :modo_reto, NOW())";
+            $query = "INSERT INTO documentos (titulo, descripcion, contenido, imagen, logo, modo_consulta, modo_mentor, modo_evaluacion, modo_reto, created)
+                      VALUES (:titulo, :descripcion, :contenido, :imagen, :logo, :modo_consulta, :modo_mentor, :modo_evaluacion, :modo_reto, NOW())";
 
             $stmt = $db->prepare($query);
             $stmt->bindParam(':titulo', $titulo);
             $stmt->bindParam(':descripcion', $descripcion);
             $stmt->bindParam(':contenido', $contenido);
             $stmt->bindParam(':imagen', $imagen_path);
+            $stmt->bindParam(':logo', $logo_path);
             $stmt->bindParam(':modo_consulta', $modo_consulta, PDO::PARAM_INT);
             $stmt->bindParam(':modo_mentor', $modo_mentor, PDO::PARAM_INT);
             $stmt->bindParam(':modo_evaluacion', $modo_evaluacion, PDO::PARAM_INT);
@@ -389,13 +418,16 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             // Iniciar transacción
             $db->beginTransaction();
             
-            // Actualizar documento (incluir imagen si se proporciona)
+            // Actualizar documento (incluir imagen/logo si se proporcionan)
             $imagen_update = isset($data['imagen']) ? $data['imagen'] : null;
-            if ($imagen_update !== null) {
-                $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido, imagen = :imagen, modo_consulta = :modo_consulta, modo_mentor = :modo_mentor, modo_evaluacion = :modo_evaluacion, modo_reto = :modo_reto WHERE id = :id";
-            } else {
-                $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido, modo_consulta = :modo_consulta, modo_mentor = :modo_mentor, modo_evaluacion = :modo_evaluacion, modo_reto = :modo_reto WHERE id = :id";
-            }
+            $logo_update = isset($data['logo']) ? $data['logo'] : null;
+
+            $extra_fields = '';
+            if ($imagen_update !== null) $extra_fields .= ', imagen = :imagen';
+            if ($logo_update !== null) $extra_fields .= ', logo = :logo';
+
+            $query = "UPDATE documentos SET titulo = :titulo, descripcion = :descripcion, contenido = :contenido, modo_consulta = :modo_consulta, modo_mentor = :modo_mentor, modo_evaluacion = :modo_evaluacion, modo_reto = :modo_reto{$extra_fields} WHERE id = :id";
+
             $stmt = $db->prepare($query);
             $stmt->bindParam(':id', $id);
             $stmt->bindParam(':titulo', $titulo);
@@ -407,6 +439,9 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             $stmt->bindParam(':modo_reto', $modo_reto, PDO::PARAM_INT);
             if ($imagen_update !== null) {
                 $stmt->bindParam(':imagen', $imagen_update);
+            }
+            if ($logo_update !== null) {
+                $stmt->bindParam(':logo', $logo_update);
             }
             
             if (!$stmt->execute()) {
@@ -527,6 +562,7 @@ $eval_stmt->bindParam(':tiempo', $tiempo_respuesta_segundos);
 
         // Para PATCH, parsear manualmente el multipart body
         $imagen_path = null;
+        $logo_path = null;
         $putdata = file_get_contents('php://input');
 
         // Obtener boundary del Content-Type
@@ -545,57 +581,79 @@ $eval_stmt->bindParam(':tiempo', $tiempo_respuesta_segundos);
                 $headers_str = $segments[0];
                 $body = rtrim($segments[1], "\r\n");
 
-                // Verificar que es el campo imagen
-                if (strpos($headers_str, 'name="imagen"') !== false) {
-                    // Extraer filename
-                    if (preg_match('/filename="([^"]+)"/', $headers_str, $fn_matches)) {
-                        $original_name = $fn_matches[1];
+                // Determinar campo (imagen o logo)
+                $field_name = null;
+                if (strpos($headers_str, 'name="imagen"') !== false) $field_name = 'imagen';
+                else if (strpos($headers_str, 'name="logo"') !== false) $field_name = 'logo';
 
-                        // Extraer content-type
-                        $file_type = 'application/octet-stream';
-                        if (preg_match('/Content-Type:\s*(.+)/i', $headers_str, $ct_matches)) {
-                            $file_type = trim($ct_matches[1]);
-                        }
+                if ($field_name && preg_match('/filename="([^"]+)"/', $headers_str, $fn_matches)) {
+                    $original_name = $fn_matches[1];
 
-                        $allowed_types = ['image/jpeg', 'image/png', 'image/webp'];
-                        $max_size = 2 * 1024 * 1024;
+                    // Extraer content-type
+                    $file_type = 'application/octet-stream';
+                    if (preg_match('/Content-Type:\s*(.+)/i', $headers_str, $ct_matches)) {
+                        $file_type = trim($ct_matches[1]);
+                    }
 
-                        if (!in_array($file_type, $allowed_types)) {
-                            http_response_code(400);
-                            echo json_encode(["message" => "Tipo de imagen no permitido. Use JPEG, PNG o WebP."]);
-                            exit();
-                        }
-                        if (strlen($body) > $max_size) {
-                            http_response_code(400);
-                            echo json_encode(["message" => "La imagen excede el tamaño máximo de 2MB."]);
-                            exit();
-                        }
+                    $allowed_types = $field_name === 'logo'
+                        ? ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
+                        : ['image/jpeg', 'image/png', 'image/webp'];
+                    $max_size = $field_name === 'logo' ? 1 * 1024 * 1024 : 2 * 1024 * 1024;
 
-                        $ext = pathinfo($original_name, PATHINFO_EXTENSION);
-                        $safe_name = 'doc_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                        $upload_dir = __DIR__ . '/../uploads/documentos/';
-                        $dest = $upload_dir . $safe_name;
+                    if (!in_array($file_type, $allowed_types)) {
+                        http_response_code(400);
+                        echo json_encode(["message" => "Tipo de $field_name no permitido."]);
+                        exit();
+                    }
+                    if (strlen($body) > $max_size) {
+                        http_response_code(400);
+                        $maxMB = $field_name === 'logo' ? '1MB' : '2MB';
+                        echo json_encode(["message" => "El $field_name excede el tamaño máximo de $maxMB."]);
+                        exit();
+                    }
 
-                        if (file_put_contents($dest, $body)) {
+                    $ext = pathinfo($original_name, PATHINFO_EXTENSION);
+                    $prefix = $field_name === 'logo' ? 'logo_' : 'doc_';
+                    $safe_name = $prefix . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                    $upload_dir = __DIR__ . '/../uploads/documentos/';
+                    $dest = $upload_dir . $safe_name;
+
+                    if (file_put_contents($dest, $body)) {
+                        if ($field_name === 'imagen') {
                             $imagen_path = 'uploads/documentos/' . $safe_name;
+                        } else {
+                            $logo_path = 'uploads/documentos/' . $safe_name;
                         }
                     }
                 }
             }
         }
 
+        $updates = [];
+        $params = [];
         if ($imagen_path) {
-            $stmt = $db->prepare("UPDATE documentos SET imagen = ? WHERE id = ?");
-            $stmt->execute([$imagen_path, $id]);
+            $updates[] = "imagen = ?";
+            $params[] = $imagen_path;
+        }
+        if ($logo_path) {
+            $updates[] = "logo = ?";
+            $params[] = $logo_path;
+        }
+
+        if (!empty($updates)) {
+            $params[] = $id;
+            $stmt = $db->prepare("UPDATE documentos SET " . implode(', ', $updates) . " WHERE id = ?");
+            $stmt->execute($params);
+
+            $response = ["message" => "Actualizado correctamente"];
+            if ($imagen_path) $response['imagen'] = $imagen_path;
+            if ($logo_path) $response['logo'] = $logo_path;
 
             http_response_code(200);
-            echo json_encode([
-                "message" => "Imagen actualizada correctamente",
-                "imagen" => $imagen_path
-            ]);
+            echo json_encode($response);
         } else {
             http_response_code(400);
-            echo json_encode(["message" => "No se recibió imagen válida"]);
+            echo json_encode(["message" => "No se recibió imagen ni logo válido"]);
         }
     }
 

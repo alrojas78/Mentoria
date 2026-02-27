@@ -65,11 +65,13 @@ const AdminDocumentosPage = ({ embedded = false }) => {
   const [modoEvaluacion, setModoEvaluacion] = useState(true);
   const [modoReto, setModoReto] = useState(true);
 
-  // Roles e imagen
+  // Roles, imagen y logo
   const [rolesDisponibles, setRolesDisponibles] = useState([...SYSTEM_ROLES]);
   const [rolesAsignados, setRolesAsignados] = useState([...SYSTEM_ROLES]);
   const [imagenFile, setImagenFile] = useState(null);
   const [imagenPreview, setImagenPreview] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
 
   // ID temporal para AttachmentManager en documentos recién creados
   const [savedDocId, setSavedDocId] = useState(null);
@@ -210,6 +212,9 @@ const AdminDocumentosPage = ({ embedded = false }) => {
         if (imagenFile) {
           await consultaService.uploadDocumentoImagen(editingDoc.id, imagenFile);
         }
+        if (logoFile) {
+          await consultaService.uploadDocumentoLogo(editingDoc.id, logoFile);
+        }
         setMensaje('Documento actualizado correctamente.');
       } else {
         const formData = new FormData();
@@ -232,6 +237,9 @@ const AdminDocumentosPage = ({ embedded = false }) => {
         formData.append('modo_reto', modoReto ? '1' : '0');
         if (imagenFile) {
           formData.append('imagen', imagenFile);
+        }
+        if (logoFile) {
+          formData.append('logo', logoFile);
         }
 
         const res = await consultaService.createDocumento(formData);
@@ -267,6 +275,8 @@ const AdminDocumentosPage = ({ embedded = false }) => {
     setModoReto(doc.modo_reto !== undefined ? !!parseInt(doc.modo_reto) : true);
     setImagenFile(null);
     setImagenPreview(doc.imagen ? `${BACKEND_BASE}/${doc.imagen}` : null);
+    setLogoFile(null);
+    setLogoPreview(doc.logo ? `${BACKEND_BASE}/${doc.logo}` : null);
     setSavedDocId(null);
     setBloques([]);
     setResumenDoc('');
@@ -311,6 +321,8 @@ const AdminDocumentosPage = ({ embedded = false }) => {
     setModoReto(true);
     setImagenFile(null);
     setImagenPreview(null);
+    setLogoFile(null);
+    setLogoPreview(null);
     setSavedDocId(null);
     setBloques([]);
     setResumenDoc('');
@@ -503,6 +515,31 @@ const AdminDocumentosPage = ({ embedded = false }) => {
             />
             <br />
             <small style={{ color: '#6b7280' }}>JPEG, PNG o WebP. Max 2MB. Proporcion 16:9 recomendada.</small>
+          </div>
+
+          {/* Logo del documento */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Logo del documento:</label>
+            {logoPreview && (
+              <div style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <img src={logoPreview} alt="Logo" style={{ maxHeight: '50px', borderRadius: '4px', objectFit: 'contain' }} />
+                <button type="button" onClick={() => { setLogoFile(null); setLogoPreview(null); }} style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: '4px', padding: '0.2rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#6b7280' }}>Quitar</button>
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/svg+xml"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  setLogoFile(file);
+                  setLogoPreview(URL.createObjectURL(file));
+                }
+              }}
+              style={{ padding: '0.4rem 0' }}
+            />
+            <br />
+            <small style={{ color: '#6b7280' }}>JPEG, PNG, WebP o SVG. Max 1MB. Se muestra en Consulta y Mentor (40-50px).</small>
           </div>
 
           {/* Roles de acceso */}

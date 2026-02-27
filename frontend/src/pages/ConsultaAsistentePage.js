@@ -1693,6 +1693,9 @@ const handleCloseVideo = (lastTime, duration) => {
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{currentMode === 'consulta_grupo' ? 'MentorIA Grupal' : 'MentorIA Realtime'}</h3>
               {documentInfo && <p style={{ margin: 0, fontSize: '0.7rem', color: '#94A3B8' }}>{documentInfo.titulo}</p>}
             </div>
+            {documentInfo?.logo && (
+              <img src={`https://mentoria.ateneo.co/backend/${documentInfo.logo}`} alt="" style={{ height: '32px', objectFit: 'contain', marginLeft: '8px', flexShrink: 0 }} />
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {isRealtimeConnected && <span style={{ fontSize: '0.85rem', color: '#94A3B8' }}>{formatDuration(realtimeSessionDuration)}</span>}
@@ -1907,6 +1910,9 @@ const handleCloseVideo = (lastTime, duration) => {
         <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>MentorIA</h3>
         {documentInfo && <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: 'var(--color-text-secondary)', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{documentInfo.titulo}</p>}
       </div>
+      {documentInfo?.logo && (
+        <img src={`https://mentoria.ateneo.co/backend/${documentInfo.logo}`} alt="" style={{ height: '36px', objectFit: 'contain', marginLeft: '12px', flexShrink: 0 }} />
+      )}
     </div>
   </div>
   

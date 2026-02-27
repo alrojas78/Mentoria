@@ -49,7 +49,7 @@ if ($documentId === 0) {
 
 try {
     // 1. Verificar que el documento existe
-    $stmtDoc = $db->prepare("SELECT id, titulo FROM documentos WHERE id = ?");
+    $stmtDoc = $db->prepare("SELECT id, titulo, logo FROM documentos WHERE id = ?");
     $stmtDoc->execute([$documentId]);
     $doc = $stmtDoc->fetch(PDO::FETCH_ASSOC);
 
@@ -211,6 +211,7 @@ try {
         'data' => [
             'document_id' => intval($documentId),
             'document_title' => $doc['titulo'],
+            'document_logo' => $doc['logo'],
             'estado' => $estado,
             'modulo_actual' => $moduloActual,
             'leccion_actual' => $leccionActual,
