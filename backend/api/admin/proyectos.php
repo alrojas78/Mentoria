@@ -41,11 +41,11 @@ if ($action) {
                 }
                 $stmt = $db->prepare("
                     SELECT pm.id, pm.proyecto_id, pm.user_id, pm.rol_proyecto, pm.created_at,
-                           u.name as nombre, u.email, u.role as rol_global
+                           u.nombre, u.email, u.role as rol_global
                     FROM proyecto_miembros pm
                     INNER JOIN users u ON u.id = pm.user_id
                     WHERE pm.proyecto_id = ?
-                    ORDER BY pm.rol_proyecto ASC, u.name ASC
+                    ORDER BY pm.rol_proyecto ASC, u.nombre ASC
                 ");
                 $stmt->execute([$proyectoId]);
                 echo json_encode(['success' => true, 'miembros' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
@@ -94,10 +94,10 @@ if ($action) {
             }
             $like = "%{$q}%";
             $stmt = $db->prepare("
-                SELECT id, name as nombre, email, role as rol_global
+                SELECT id, nombre, email, role as rol_global
                 FROM users
-                WHERE (name LIKE ? OR email LIKE ?)
-                ORDER BY name ASC
+                WHERE (nombre LIKE ? OR email LIKE ?)
+                ORDER BY nombre ASC
                 LIMIT 20
             ");
             $stmt->execute([$like, $like]);
