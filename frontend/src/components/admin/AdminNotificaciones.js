@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
-import { notificacionService } from '../../services/api';
+import { notificacionService, API_BASE_URL } from '../../services/api';
 import axios from 'axios';
-
-const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
 
 const Container = styled.div``;
 

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProject } from '../../contexts/ProjectContext';
+import { membershipService } from '../../services/api';
 import styled, { keyframes } from 'styled-components';
 
 // Animaciones
@@ -241,6 +243,22 @@ const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { proyecto } = useProject();
+  const [showWaLink, setShowWaLink] = useState(false);
+
+  // Check membership for WA Training link visibility
+  useEffect(() => {
+    if (!user) { setShowWaLink(false); return; }
+    if (user.role === 'admin') { setShowWaLink(true); return; }
+
+    membershipService.getMisProyectos()
+      .then(res => {
+        const memberships = res.data?.memberships || [];
+        const hasWa = memberships.some(m => m.whatsapp_connected);
+        setShowWaLink(hasWa);
+      })
+      .catch(() => setShowWaLink(false));
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -252,7 +270,7 @@ const Header = () => {
       <ContainerHeader>
         <Logo to="/">
           <NeuralIcon />
-          <span>MentorIA</span>
+          <span>{proyecto?.nombre || 'MentorIA'}</span>
         </Logo>
         <ButtonMenu onClick={() => setMenuOpen(!menuOpen)}>
           ☰
@@ -267,6 +285,9 @@ const Header = () => {
           {user ? (
             <>
               <NavLink to="/documentos" onClick={() => setMenuOpen(false)}>Contenidos</NavLink>
+              {showWaLink && (
+                <NavLink to="/wa-training" onClick={() => setMenuOpen(false)}>Entrenamiento WA</NavLink>
+              )}
               <Button onClick={() => { handleLogout(); setMenuOpen(false); }}>Cerrar Sesión</Button>
             </>
           ) : (

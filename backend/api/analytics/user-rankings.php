@@ -342,7 +342,14 @@ function getMentorProgressRanking($db, $document_id, $limit) {
                     FROM doc_conversacion_sesiones s
                     WHERE s.user_id = u.id AND s.document_id = :document_id AND s.modo = 'mentor'
                 ), 0) as tiempo_mentor_minutos,
-                JSON_LENGTH(COALESCE(dmp.temas_completados, '[]')) as temas_completados
+                JSON_LENGTH(COALESCE(dmp.temas_completados, '[]')) as temas_completados,
+                (SELECT COUNT(*) FROM doc_mentor_videos v WHERE v.document_id = :document_id AND v.es_activo = 1) as total_videos,
+                COALESCE((
+                    SELECT COUNT(*) FROM doc_mentor_video_progreso vp
+                    JOIN doc_mentor_videos mv ON mv.id = vp.video_id
+                    WHERE vp.user_id = u.id AND vp.document_id = :document_id
+                    AND (vp.completado = 1 OR vp.timestamp_maximo >= mv.duracion_segundos * 0.9)
+                ), 0) as videos_completados
             FROM users u
             INNER JOIN doc_mentor_progreso dmp ON u.id = dmp.user_id AND dmp.document_id = :document_id
             LEFT JOIN doc_conversacion_sesiones dcs ON u.id = dcs.user_id
@@ -350,9 +357,9 @@ function getMentorProgressRanking($db, $document_id, $limit) {
             GROUP BY u.id, u.nombre, u.email, dmp.leccion_actual, dmp.modulo_actual,
                      dmp.fecha_inicio, dmp.ultima_actualizacion, dmp.temas_completados
             ORDER BY
+                videos_completados DESC,
                 dmp.modulo_actual DESC,
-                dmp.leccion_actual DESC,
-                temas_completados DESC
+                dmp.leccion_actual DESC
             LIMIT :limit
         ";
 
@@ -480,19 +487,17 @@ function determineModoPreferido($data) {
 }
 
 /**
- * Calcular porcentaje estimado de progreso
+ * Calcular porcentaje de progreso basado en videos completados reales
  */
 function calculateProgressPercentage($data) {
-    // Estimación simple: cada módulo tiene 10 lecciones
-    $lecciones_por_modulo = 10;
-    $modulo = (int)$data['modulo_actual'];
-    $leccion = (int)$data['leccion_actual'];
-    $temas = (int)$data['temas_completados'];
-    
-    // Estimación básica de progreso
-    $progreso = (($modulo - 1) * $lecciones_por_modulo + $leccion + ($temas * 0.1)) / ($lecciones_por_modulo * 5) * 100;
-    
-    return min(100, max(0, round($progreso, 1)));
+    $total = isset($data['total_videos']) ? (int)$data['total_videos'] : 0;
+    $completados = isset($data['videos_completados']) ? (int)$data['videos_completados'] : 0;
+
+    if ($total > 0) {
+        return min(100, max(0, round(($completados / $total) * 100, 1)));
+    }
+
+    return 0;
 }
 
 /**

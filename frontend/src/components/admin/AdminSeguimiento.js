@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
-import { seguimientoService } from '../../services/api';
+import { seguimientoService, API_BASE_URL } from '../../services/api';
 import axios from 'axios';
-
-const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
 
 // ============================================================
 // STYLED COMPONENTS

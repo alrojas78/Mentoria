@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import AuthModal from '../components/AuthModal';
+import { useProject } from '../contexts/ProjectContext';
+import { BACKEND_BASE } from '../services/api';
+import DynamicLanding from '../components/landing/DynamicLanding';
 
 import imgdoctora from '../assets/img/doctora_2.png';
 import fondo from '../assets/img/banner_ensayo_1.jpg';
@@ -555,6 +558,7 @@ const IconoCart14 = styled.img`
 const HomePage = ({ autoAuth }) => {
   const [authOpen, setAuthOpen] = useState(!!autoAuth);
   const [authTab, setAuthTab] = useState(autoAuth || 'login');
+  const { proyecto } = useProject();
 
   // Sincronizar cuando autoAuth cambia (navegación desde Header hamburguesa)
   useEffect(() => {
@@ -567,20 +571,42 @@ const HomePage = ({ autoAuth }) => {
   const openLogin = () => { setAuthTab('login'); setAuthOpen(true); };
   const openRegister = () => { setAuthTab('register'); setAuthOpen(true); };
 
+  // Landing dinámica si el proyecto tiene secciones configuradas
+  const landingSecciones = proyecto?.config_json?.landing_secciones;
+  const useDynamic = Array.isArray(landingSecciones) && landingSecciones.length > 0;
+
+  if (useDynamic) {
+    return (
+      <>
+        <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} initialTab={authTab} />
+        <DynamicLanding
+          secciones={landingSecciones}
+          proyecto={proyecto}
+          openLogin={openLogin}
+          openRegister={openRegister}
+        />
+      </>
+    );
+  }
+
   return (
     <>
     <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} initialTab={authTab} />
 
     {/* Banner principal home */}
-      <HeroContainer>
+      <HeroContainer style={proyecto ? { '--hero-primary': proyecto.color_primario, '--hero-secondary': proyecto.color_secundario } : {}}>
         <HeroPriContainer>
           <LeftHeroImg>
-              <HeroImgDoctora src={imgdoctora} alt="Doctora" />
+              {proyecto?.logo ? (
+                <HeroImgDoctora src={`${BACKEND_BASE}/${proyecto.logo}`} alt={proyecto.nombre} style={{ objectFit: 'contain', maxHeight: '350px' }} />
+              ) : (
+                <HeroImgDoctora src={imgdoctora} alt="Doctora" />
+              )}
           </LeftHeroImg>
           <HeroContent>
-            <MainTitle><HeroChipIcon />MentorIA</MainTitle>
+            <MainTitle><HeroChipIcon />{proyecto?.titulo_landing || 'MentorIA'}</MainTitle>
             <Subtitle>
-              Plataforma profesional de educación médica con inteligencia artificial conversacional. Aprende, practica y evalúa tus conocimientos médicos con precisión y confianza.
+              {proyecto?.subtitulo_landing || 'Plataforma profesional de educación médica con inteligencia artificial conversacional. Aprende, practica y evalúa tus conocimientos médicos con precisión y confianza.'}
             </Subtitle>
             <ButtonContainer>
               <PrimaryButton onClick={openLogin}>

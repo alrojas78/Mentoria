@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useVoice } from '../contexts/VoiceContext';
+import { API_BASE_URL } from '../services/api';
 import './VideoMentorPopup.css';
 
 // --- Iconos SVG ---
@@ -218,7 +219,7 @@ const initializePlayer = () => {
             
             // ✅ GUARDAR DURACIÓN EN BD SI NO EXISTE
             if (videoData.id && duration > 0) {
-                fetch('https://mentoria.ateneo.co/backend/api/update-video-duration.php', {
+                fetch(`${API_BASE_URL}/update-video-duration.php`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -337,7 +338,7 @@ playerRef.current.on('seeked', (data) => {
 
 const actualizarDuracionVideo = async (videoId, duracion) => {
     try {
-        const response = await fetch('https://mentoria.ateneo.co/backend/api/update-video-duration.php', {
+        const response = await fetch(`${API_BASE_URL}/update-video-duration.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -383,7 +384,7 @@ const handleIntelligentFeedback = async (action, context) => {
                 break;
         }
         
-        const response = await fetch('https://mentoria.ateneo.co/backend/api/consulta.php', {
+        const response = await fetch(`${API_BASE_URL}/consulta.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -452,7 +453,7 @@ const saveProgress = async (timeInSeconds, forceCompleted = false) => {
             forceCompleted: forceCompleted
         });
         
-        const response = await fetch('https://mentoria.ateneo.co/backend/api/video-mentor-progress.php', {
+        const response = await fetch(`${API_BASE_URL}/video-mentor-progress.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -549,7 +550,7 @@ const handleUserCommand = async (command) => {
                 }
             }
             
-            const response = await fetch('https://mentoria.ateneo.co/backend/api/consulta.php', {
+            const response = await fetch(`${API_BASE_URL}/consulta.php`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -642,7 +643,7 @@ if (textoMentor.includes('continuar') ||
             }
         }
         
-        const response = await fetch('https://mentoria.ateneo.co/backend/api/consulta.php', {
+        const response = await fetch(`${API_BASE_URL}/consulta.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -682,7 +683,7 @@ const handleSpecificQuestion = async (question) => {
 
 Responde de manera clara y educativa como un tutor. Después de responder, pregunta si ya puede continuar con el video o si necesita más aclaraciones.`;
 
-        const response = await fetch('https://mentoria.ateneo.co/backend/api/consulta.php', {
+        const response = await fetch(`${API_BASE_URL}/consulta.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

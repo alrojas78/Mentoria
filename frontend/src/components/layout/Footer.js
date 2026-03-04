@@ -1,5 +1,6 @@
 import React from 'react';
 import styled, { keyframes } from 'styled-components';
+import { useProject } from '../../contexts/ProjectContext';
 import logoAdium from '../../assets/img/logo_footer.png';
 
 const subtleGlow = keyframes`
@@ -164,6 +165,7 @@ const FooterNeuralIcon = () => (
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { proyecto } = useProject();
 
   return (
     <FooterContainer>
@@ -171,7 +173,7 @@ const Footer = () => {
         <FooterMain>
           <LogoSection>
             <FooterNeuralIcon />
-            <LogoText>MentorIA</LogoText>
+            <LogoText>{proyecto?.nombre || 'MentorIA'}</LogoText>
           </LogoSection>
           <ContactSection>
             <AdiumLogo src={logoAdium} alt="Adium" />

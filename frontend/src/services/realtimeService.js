@@ -3,7 +3,7 @@
 // Fase 4.2: Soporte de function calling para bloques temáticos
 import axios from 'axios';
 
-const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
+import { API_BASE_URL } from './api';
 
 // Estados de la sesión
 export const SESSION_STATES = {

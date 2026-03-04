@@ -1374,7 +1374,7 @@ const handleModeChange = useCallback((newMode) => {
               {documentInfo && <p style={{ margin: 0, fontSize: '0.65rem', color: '#94A3B8' }}>{documentInfo.titulo}</p>}
             </div>
             {documentInfo?.logo && (
-              <img src={`https://mentoria.ateneo.co/backend/${documentInfo.logo}`} alt="" style={{ height: '28px', objectFit: 'contain', marginLeft: '6px', flexShrink: 0 }} />
+              <img src={`/backend/${documentInfo.logo}`} alt="" style={{ height: '28px', objectFit: 'contain', marginLeft: '6px', flexShrink: 0 }} />
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1502,7 +1502,7 @@ const handleModeChange = useCallback((newMode) => {
               {documentInfo && <p>{documentInfo.titulo}</p>}
             </div>
             {documentInfo?.logo && (
-              <img src={`https://mentoria.ateneo.co/backend/${documentInfo.logo}`} alt="" style={{ height: '28px', objectFit: 'contain', marginLeft: '6px', flexShrink: 0 }} />
+              <img src={`/backend/${documentInfo.logo}`} alt="" style={{ height: '28px', objectFit: 'contain', marginLeft: '6px', flexShrink: 0 }} />
             )}
           </div>
         </div>

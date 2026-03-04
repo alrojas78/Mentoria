@@ -85,21 +85,37 @@ if ($action == 'login') {
     $user->nombre = $data->nombre;
     $user->email = $data->email;
     $user->password = password_hash($data->password, PASSWORD_BCRYPT);
+    // Detectar proyecto por dominio para auto-asignar rol
+    $proyectoRol = null;
+    $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+    $host = preg_replace('/:\d+$/', '', $host);
+    if ($host) {
+        $stmtProy = $db->prepare("SELECT rol_default FROM proyectos WHERE (dominio_personalizado = ? OR (slug = ? AND ? LIKE '%.ateneomentoria.com')) AND activo = 1 AND rol_default IS NOT NULL LIMIT 1");
+        $subdomain = preg_match('/^([a-z0-9\-]+)\.ateneomentoria\.com$/', $host, $m) ? $m[1] : '';
+        $stmtProy->execute([$host, $subdomain, $host]);
+        $proyectoRol = $stmtProy->fetchColumn();
+    }
+
     // Validar rol: solo roles de content_groups (excluir roles del sistema)
     $systemRoles = ['admin', 'mentor', 'coordinador'];
-    $role = !empty($data->role) ? strtolower(trim($data->role)) : '';
 
-    if ($role && !in_array($role, $systemRoles)) {
-        // Verificar que el grupo existe en content_groups
-        $stmtCheck = $db->prepare("SELECT COUNT(*) FROM content_groups WHERE name = ?");
-        $stmtCheck->execute([$role]);
-        if ($stmtCheck->fetchColumn() > 0) {
-            $user->role = $role;
+    if ($proyectoRol) {
+        // Rol asignado automáticamente por proyecto
+        $user->role = $proyectoRol;
+    } else {
+        $role = !empty($data->role) ? strtolower(trim($data->role)) : '';
+        if ($role && !in_array($role, $systemRoles)) {
+            // Verificar que el grupo existe en content_groups
+            $stmtCheck = $db->prepare("SELECT COUNT(*) FROM content_groups WHERE name = ?");
+            $stmtCheck->execute([$role]);
+            if ($stmtCheck->fetchColumn() > 0) {
+                $user->role = $role;
+            } else {
+                $user->role = 'vozama';
+            }
         } else {
             $user->role = 'vozama';
         }
-    } else {
-        $user->role = 'vozama';
     }
     $user->created = date('Y-m-d H:i:s');
     

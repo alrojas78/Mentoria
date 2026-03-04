@@ -3,8 +3,9 @@
 // Optimizado para iOS Safari con MediaRecorder
 
 import axios from 'axios';
+import { API_BASE_URL } from './api';
 
-const WHISPER_API_URL = 'https://mentoria.ateneo.co/backend/api/whisper.php';
+const WHISPER_API_URL = `${API_BASE_URL}/whisper.php`;
 
 /**
  * Servicio de Whisper para transcripción de audio

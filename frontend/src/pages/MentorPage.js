@@ -1747,7 +1747,7 @@ const MentorPage = () => {
             </ThemeToggle>
             {mentorData?.document_logo && (
               <img
-                src={`https://mentoria.ateneo.co/backend/${mentorData.document_logo}`}
+                src={`/backend/${mentorData.document_logo}`}
                 alt=""
                 style={{ height: '40px', objectFit: 'contain', flexShrink: 0 }}
               />

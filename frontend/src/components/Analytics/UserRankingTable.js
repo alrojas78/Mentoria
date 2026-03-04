@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import analyticsService from '../../services/analyticsService';
+import { API_BASE_URL } from '../../services/api';
 
 const RetentionContainer = styled.div`
   background: white;
@@ -532,7 +533,7 @@ const UserRankingTable = ({ documentId }) => {
   // Función para exportar todas las consultas de usuarios
   const exportConsultas = async () => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'https://mentoria.ateneo.co/backend/api';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('token');
 
       const response = await fetch(

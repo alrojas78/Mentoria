@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { whisperService } from '../services/whisperService';
 import SilenceDetector from '../services/silenceDetector';
+import { API_BASE_URL } from '../services/api';
 import './VideoMentorPopup.css';
 
 // Iconos SVG
@@ -86,7 +87,7 @@ const VideoMentorPopupiPhone = ({
             isCompleted: isCompleted
         });
         
-        const response = await fetch('https://mentoria.ateneo.co/backend/api/video-mentor-progress.php', {
+        const response = await fetch(`${API_BASE_URL}/video-mentor-progress.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -139,7 +140,7 @@ const VideoMentorPopupiPhone = ({
         
         // Guardar duración en BD
         if (videoData.id && duration > 0) {
-          fetch('https://mentoria.ateneo.co/backend/api/update-video-duration.php', {
+          fetch(`${API_BASE_URL}/update-video-duration.php`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -241,7 +242,7 @@ playerRef.current.on('pause', (data) => {
         if (!allowSeekRef.current) {
             saveProgress(videoDuration);
 
-            fetch('https://mentoria.ateneo.co/backend/api/video-mentor-progress.php', {
+            fetch(`${API_BASE_URL}/video-mentor-progress.php`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

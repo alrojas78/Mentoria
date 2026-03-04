@@ -13,6 +13,8 @@ import AdminDocumentosPage from './admin/AdminDocumentosPage';
 import AdminNotificaciones from '../components/admin/AdminNotificaciones';
 import VoiceServiceAdmin from '../components/admin/VoiceServiceAdmin';
 import AdminSeguimiento from '../components/admin/AdminSeguimiento';
+import AdminProyectos from '../components/admin/AdminProyectos';
+import AdminWhatsAppTraining from '../components/admin/AdminWhatsAppTraining';
 
 const Container = styled.div`
   max-width: 1400px;
@@ -67,6 +69,8 @@ const tabs = [
   { id: 'groups', label: 'Grupos de Contenido' },
   { id: 'documents', label: 'Documentos' },
   { id: 'seguimiento', label: 'Seguimiento' },
+  { id: 'proyectos', label: 'Proyectos' },
+  { id: 'wa-training', label: 'WA Training' },
   { id: 'notificaciones', label: 'Notificaciones' },
   { id: 'config', label: 'Configuración' },
 ];
@@ -102,6 +106,8 @@ const AdminDashboard = () => {
       {activeTab === 'groups' && <AdminGruposContenido />}
       {activeTab === 'documents' && <AdminDocumentosPage embedded />}
       {activeTab === 'seguimiento' && <AdminSeguimiento />}
+      {activeTab === 'proyectos' && <AdminProyectos />}
+      {activeTab === 'wa-training' && <AdminWhatsAppTraining />}
       {activeTab === 'notificaciones' && <AdminNotificaciones />}
       {activeTab === 'config' && <VoiceServiceAdmin />}
     </Container>

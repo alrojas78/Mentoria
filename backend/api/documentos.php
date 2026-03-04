@@ -174,12 +174,11 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
 
             // Insertar roles asignados al documento
             $roles_input = isset($_POST['roles']) ? $_POST['roles'] : '';
-            $roles_array = !empty($roles_input) ? (is_array($roles_input) ? $roles_input : explode(',', $roles_input)) : ['admin', 'mentor', 'estudiante', 'coordinador'];
-            $allowed_roles = ['admin', 'mentor', 'estudiante', 'coordinador'];
+            $roles_array = !empty($roles_input) ? (is_array($roles_input) ? $roles_input : explode(',', $roles_input)) : ['admin', 'mentor', 'coordinador'];
 
             foreach ($roles_array as $role) {
                 $role = trim($role);
-                if (in_array($role, $allowed_roles)) {
+                if (!empty($role)) {
                     $roleStmt = $db->prepare("INSERT IGNORE INTO documento_roles (documento_id, role) VALUES (?, ?)");
                     $roleStmt->execute([$document_id, $role]);
                 }
@@ -451,15 +450,14 @@ if ($tiempo_respuesta_segundos < 10 || $tiempo_respuesta_segundos > 300) {
             // Actualizar roles del documento si se proporcionan
             if (isset($data['roles'])) {
                 $roles_array = is_array($data['roles']) ? $data['roles'] : explode(',', $data['roles']);
-                $allowed_roles = ['admin', 'mentor', 'estudiante', 'coordinador'];
 
                 // Eliminar roles anteriores
                 $db->prepare("DELETE FROM documento_roles WHERE documento_id = ?")->execute([$id]);
 
-                // Insertar nuevos roles
+                // Insertar nuevos roles (acepta cualquier rol válido)
                 foreach ($roles_array as $role) {
                     $role = trim($role);
-                    if (in_array($role, $allowed_roles)) {
+                    if (!empty($role)) {
                         $roleStmt = $db->prepare("INSERT IGNORE INTO documento_roles (documento_id, role) VALUES (?, ?)");
                         $roleStmt->execute([$id, $role]);
                     }

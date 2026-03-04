@@ -4,7 +4,7 @@ import AttachmentManager from '../../components/AttachmentManager';
 import axios from 'axios';
 
 const SYSTEM_ROLES = ['admin', 'mentor', 'coordinador'];
-const BACKEND_BASE = 'https://mentoria.ateneo.co/backend';
+const BACKEND_BASE = '/backend';
 
 // Estilos reutilizables
 const styles = {

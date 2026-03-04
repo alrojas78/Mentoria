@@ -3,11 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/api';
+import { authService, API_BASE_URL } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
-
-const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
 
 const Container = styled.div`
   max-width: 400px;

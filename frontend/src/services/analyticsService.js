@@ -1,7 +1,7 @@
 // src/services/analyticsService.js
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://mentoria.ateneo.co/backend/api';
+import { API_BASE_URL } from './api';
 
 // Configurar interceptor para autenticación
 axios.interceptors.request.use((config) => {

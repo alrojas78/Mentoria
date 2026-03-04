@@ -32,4 +32,9 @@ define('ELEVENLABS_API_KEY', getenv('ELEVENLABS_API_KEY'));
 
 // Configuracion de OpenAI
 define('OPENAI_API_KEY', getenv('OPENAI_API_KEY'));
+
+// Configuracion de Operatix (Fase 11 - WhatsApp Training)
+define('OPERATIX_BASE_URL', getenv('OPERATIX_BASE_URL') ?: 'https://operatix.co');
+define('OPERATIX_API_KEY', getenv('OPERATIX_API_KEY') ?: '');
+define('OPERATIX_SERVICE_EMAIL', getenv('OPERATIX_SERVICE_EMAIL') ?: 'bridge@mentoria.ateneo.co');
 ?>

@@ -3,6 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { VoiceProvider } from './contexts/VoiceContext';
+import { ProjectProvider } from './contexts/ProjectContext';
 import CourseProgressView from './pages/CourseProgressView';
 import { useAuth } from './contexts/AuthContext';
 import VoiceTestiPhone from './pages/VoiceTestiPhone';
@@ -46,6 +47,7 @@ import DocumentAnalytics from './pages/DocumentAnalytics';
 
 import SpeechProgressIndicator from './components/SpeechProgressIndicator';
 import MentorPage from './pages/MentorPage';
+import WhatsAppTrainingPage from './pages/WhatsAppTrainingPage';
 
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children }) => {
@@ -198,6 +200,15 @@ const AppContent = () => {
             } 
           />
 
+          <Route
+            path="/wa-training"
+            element={
+              <ProtectedRoute>
+                <WhatsAppTrainingPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Redirigir rutas legacy de admin a panel unificado */}
           <Route path="/admin/documentos" element={<Navigate to="/admin-panel" replace />} />
           <Route path="/admin/voice-service" element={<Navigate to="/admin-panel" replace />} />
@@ -223,11 +234,13 @@ const AppContent = () => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <VoiceProvider>
-          <AppContent />
-        </VoiceProvider>
-      </AuthProvider>
+      <ProjectProvider>
+        <AuthProvider>
+          <VoiceProvider>
+            <AppContent />
+          </VoiceProvider>
+        </AuthProvider>
+      </ProjectProvider>
     </Router>
   );
 }

@@ -1,6 +1,6 @@
 # Mentoria 4.0 - Roadmap de Actualización Mayor
 
-## Estado actual: Fase 7 implementada (Mentor 2.0) | Fase 8 en progreso (Sistema de Seguimiento)
+## Estado actual: Fase 11 en progreso (WhatsApp Training, 11.0-11.6 completadas) | Fase 8 parcial
 
 ---
 
@@ -424,12 +424,154 @@ Ver detalle completo en `docs/FASE-N-SEGUIMIENTO.md`
 
 ---
 
+### Fase 9: Multi-Proyecto ✅
+**Complejidad: ALTA | Completada: 2026-02-27**
+
+- [x] URLs relativas (eliminar hardcoded mentoria.ateneo.co)
+- [x] Tabla `proyectos` + `proyecto_documentos`
+- [x] `ProjectContext.js` — detección por dominio/subdominio
+- [x] `AdminProyectos.js` — CRUD completo de proyectos
+- [x] `proyecto-info.php` — endpoint público para detección de proyecto
+- [x] `admin/proyectos.php` — CRUD backend con logo upload
+- [x] Landing personalizable por proyecto (título, subtítulo, colores, logo)
+
+### Fase 10: Landing Page Builder ✅
+**Complejidad: ALTA | Completada: 2026-02-27**
+
+**Objetivo:** Cada proyecto puede tener una landing completamente custom con secciones dinámicas, diferentes contenidos, imágenes, orden y estilos.
+
+**12 tipos de sección disponibles:**
+
+| Tipo | Descripción |
+|------|-------------|
+| `header` | Header personalizado (logo, marca, botones login/registro) |
+| `hero` | Banner principal con personalización completa (fuentes, alineación, alturas, colores, layout) |
+| `stats` | Estadísticas con items valor/etiqueta |
+| `feature_cards` | Tarjetas de características con imagen, título, descripción |
+| `contenidos_carousel` | Carrusel tipo Netflix de contenidos (auto: docs del proyecto, o manual) |
+| `icon_text_grid` | Grilla de iconos con texto (2-3 columnas) |
+| `text_block` | Bloque de texto libre con HTML |
+| `image_gallery` | Galería de imágenes con captions |
+| `cta_button` | Call to Action con botón configurable |
+| `testimonials` | Testimonios con nombre, cargo, foto |
+| `custom_html` | HTML + CSS libre |
+| `footer` | Footer personalizado con columnas de enlaces |
+
+**Features globales:**
+- [x] Fuentes personalizables por landing (Google Fonts dinámico: Roboto, Montserrat, Poppins, etc.)
+- [x] Hero avanzado: alineación texto (izq/centro/der), layout (img-izq/img-der/solo texto), alturas, fuentes por campo, overlay fondo, colores individuales de botones
+- [x] Carrusel Netflix: auto-carga documentos del proyecto o items manuales
+- [x] Header/Footer como secciones configurables
+- [x] Editor admin: lista + reorder ↑↓ + agregar + editar + ocultar + eliminar
+- [x] Upload de imágenes por sección
+- [x] Config guardada en `config_json.landing_secciones` + `config_json.landing_config`
+- [x] Sin proyecto o sin secciones → landing MentorIA default sin cambios
+
+**Archivos nuevos (19):**
+- `frontend/src/components/landing/DynamicLanding.js` (orquestador + Google Fonts)
+- `frontend/src/components/landing/SectionRenderer.js` (switch tipo→componente)
+- `frontend/src/components/landing/sections/HeroSection.js`
+- `frontend/src/components/landing/sections/StatsSection.js`
+- `frontend/src/components/landing/sections/FeatureCardsSection.js`
+- `frontend/src/components/landing/sections/IconTextGridSection.js`
+- `frontend/src/components/landing/sections/TextBlockSection.js`
+- `frontend/src/components/landing/sections/ImageGallerySection.js`
+- `frontend/src/components/landing/sections/CtaButtonSection.js`
+- `frontend/src/components/landing/sections/TestimonialsSection.js`
+- `frontend/src/components/landing/sections/CustomHtmlSection.js`
+- `frontend/src/components/landing/sections/HeaderSection.js`
+- `frontend/src/components/landing/sections/FooterSection.js`
+- `frontend/src/components/landing/sections/ContenidosCarouselSection.js`
+- `frontend/src/components/admin/AdminLandingEditor.js`
+- `frontend/src/components/admin/landing-forms/HeroForm.js`
+- `frontend/src/components/admin/landing-forms/StatsForm.js`
+- `frontend/src/components/admin/landing-forms/GenericSectionForm.js`
+- `backend/api/admin/landing-upload.php`
+
+**Archivos modificados:**
+- `backend/api/admin/proyectos.php` (PUT parcial para config_json merge)
+- `frontend/src/services/api.js` (saveLandingSections, uploadLandingImage)
+- `frontend/src/pages/HomePage.js` (condicional DynamicLanding)
+- `frontend/src/components/admin/AdminProyectos.js` (botón Landing + editor)
+
+---
+
+### Fase 11: Entrenamiento por WhatsApp ⏳
+**Complejidad: MUY ALTA | Estado: Fases 11.0-11.6 completadas**
+
+**Objetivo:** Sistema de entrenamiento programado por WhatsApp. Clientes conectan su número WhatsApp Business desde Mentoria, programan contenidos + preguntas que se envían automáticamente a estudiantes. La IA de Mentoria evalúa respuestas y genera retroalimentación. Operatix actúa como puente invisible para Meta WhatsApp API.
+
+Ver detalle completo en `docs/FASE-11-WHATSAPP-TRAINING.md`
+
+| Sub-fase | Descripción | Estado |
+|----------|-------------|--------|
+| 11.0 | API Key Bridge en Operatix (~35 líneas, cero impacto clientes) | ✅ |
+| 11.1 | OperatixBridge.php — servicio de comunicación | ✅ |
+| 11.2 | Conexión WhatsApp desde Mentoria (Meta Embedded Signup) | ✅ |
+| 11.3 | Modelo de datos — 4 tablas (wa_programas, wa_entregas, wa_inscripciones, wa_interacciones) | ✅ |
+| 11.4 | Admin UI — tab WA Training en AdminDashboard + 4 CRUD endpoints | ✅ |
+| 11.5 | Motor de envío + Cron (cada 15 min) + auto-programación | ✅ |
+| 11.6 | Webhook de respuestas (forward desde Operatix → Mentoria) | ✅ |
+| 11.7 | Evaluación IA + retroalimentación (texto/audio MiniMax) | ⬜ |
+| 11.8 | Dashboard y reportes | ⬜ |
+| 11.9 | Templates de Meta + aprobación | ⬜ |
+
+**Dependencias:** Fase 8.1-8.2 ✅, Fase 9 ✅, Operatix Meta OAuth ✅
+
+#### Cambios realizados en Operatix (servidor 100.50.146.169)
+
+**IMPORTANTE: Registro de cambios en servidor externo Operatix para rollback en caso de fallo.**
+
+**Fase 11.0 — API Key Auth (2026-03-03):**
+- **Archivo modificado:** `/var/www/operatix.co/app/helpers/SessionHelper.php`
+- **Backup:** `/var/www/operatix.co/app/helpers/SessionHelper.php.bak_20260303`
+- **Cambio:** ~35 líneas agregadas. Nuevo bloque en `init()` que detecta header `X-API-Key` y método privado `authenticateByApiKey()` antes del cierre de clase.
+- **Lógica:** Si viene `X-API-Key` y no hay sesión PHP activa, valida contra `system_config.mentoria_api_key`. Si válido, carga sesión del service account (usuario ID 95). Si no viene header, flujo normal sin cambios.
+- **DB inserts:** `system_config`: `mentoria_api_key` (hash), `mentoria_api_user_id` = 95. Tabla `usuarios`: ID 95, email `bridge@mentoria.ateneo.co`, role admin, user_type main.
+- **Impacto clientes:** CERO — solo se activa con header X-API-Key que ningún cliente envía.
+- **Rollback:** `cp SessionHelper.php.bak_20260303 SessionHelper.php`
+
+**Fase 11.6 — Webhook Forward (2026-03-04):**
+- **Archivo modificado:** `/var/www/operatix.co/app/controllers/MetaWebhookController.php`
+- **Backup:** `/var/www/operatix.co/app/controllers/MetaWebhookController.php.bak_webhook_20260304`
+- **Cambio:** ~25 líneas insertadas en `processWhatsAppMsg()`, justo después de `saveIncomingMessage()` y antes del chequeo de llamada activa.
+- **Lógica:** Si el proyecto tiene `settings.webhook_forward_url` (campo JSON en tabla `projects`), hace POST con `{from, content, type, media_url, message_id, timestamp, project_id}` al URL configurado. Header `X-Operatix-Webhook: 1`. Timeout 5 segundos. Try/catch aislado — si falla, solo logea error, no afecta el flujo normal.
+- **Impacto clientes:** CERO — solo se activa si `settings.webhook_forward_url` existe en el proyecto. Ningún proyecto existente tiene este campo. El campo se configura automáticamente al conectar WA desde Mentoria.
+- **Rollback:** `cp MetaWebhookController.php.bak_webhook_20260304 MetaWebhookController.php`
+
+#### Archivos clave Fase 11 en Mentoria
+
+**Backend nuevos:**
+- `backend/utils/OperatixBridge.php` — Singleton HTTP client hacia Operatix API
+- `backend/utils/WaTrainingService.php` — Motor de programación y envío
+- `backend/cron/wa-training-engine.php` — Cron job cada 15 min
+- `backend/api/operatix/test-connection.php` — Test de conectividad
+- `backend/api/operatix/connect-whatsapp.php` — Meta Embedded Signup + auto-config webhook
+- `backend/api/operatix/whatsapp-status.php` — Estado de conexión WA
+- `backend/api/operatix/disconnect-whatsapp.php` — Desconectar WA
+- `backend/api/admin/wa-programas.php` — CRUD programas
+- `backend/api/admin/wa-entregas.php` — CRUD entregas (reorder, validación)
+- `backend/api/admin/wa-inscripciones.php` — CRUD inscripciones (bulk import)
+- `backend/api/admin/wa-interacciones.php` — Log read-only paginado
+- `backend/api/webhook/wa-respuesta.php` — Receptor de respuestas WhatsApp
+- `backend/db/migration_fase11_wa_training.sql` — Migración 4 tablas
+
+**Frontend nuevos:**
+- `frontend/src/components/admin/AdminWhatsAppTraining.js` — Admin UI (4 sub-tabs)
+
+**Frontend/Backend modificados:**
+- `frontend/src/pages/AdminDashboard.js` — Tab "WA Training"
+- `frontend/src/services/api.js` — waTrainingService + operatixService
+- `frontend/src/components/admin/AdminProyectos.js` — Panel WhatsApp + FB SDK
+- `backend/config/config.php` — Constantes OPERATIX_*
+
+---
+
 ## Orden de ejecución
 
 ```
-Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 4 ✅ → Fase 4.1 ✅ → Fase 4.2 ✅ → Fase 5 ✅ → Fase 6 ✅ → Fase 7 ✅ → Fase 8 ⏳
- roles      imágenes     admin       realtime     fix GA       bloques      admin v2    fixes+notif  Mentor 2.0   Seguimiento
- (ALTA)     (MEDIA)     (MEDIA)      (ALTA)      (ALTA)       (ALTA)       (ALTA)      (MEDIA)      (MUY ALTA)   (ALTA)
+Fase 1 ✅ → 2 ✅ → 3 ✅ → 4 ✅ → 4.1 ✅ → 4.2 ✅ → 5 ✅ → 6 ✅ → 7 ✅ → 8 ⏳ → 9 ✅ → 10 ✅ → 11 ⏳
+ roles     imgs    admin   realtime  fixGA    bloques  adminV2  fixes    Mentor2  Seguim   Multi    Landing   WA Train
 ```
 
 ## Verificación por fase
@@ -446,8 +588,11 @@ Fase 1 ✅ → Fase 2 ✅ → Fase 3 ✅ → Fase 4 ✅ → Fase 4.1 ✅ → Fas
 | **6** | ✅ | Notificaciones admin→usuario, analytics reales, correcciones de progreso y URLs |
 | **7** | ✅ | Mentor 2.0: video embebido + sidebar colapsable + chat IA + quiz semántico + desplegado en Adium |
 | **8** | ⏳ | Seguimiento: DB (7 tablas) + Admin UI (6 sub-tabs) completados. Pendiente: email, cron, Operatix |
+| **9** | ✅ | Multi-Proyecto: URLs relativas, ProjectContext, AdminProyectos, detección por dominio |
+| **10** | ✅ | Landing Builder: 12 tipos de sección, fuentes globales, carrusel Netflix, header/footer custom |
+| **11** | ⏳ | WhatsApp Training: 11.0-11.6 completados (bridge, conexión WA, DB, admin UI, motor envío, webhook). Pendiente: evaluación IA (11.7), dashboard (11.8), templates (11.9) |
 
 ---
 
-*Última actualización: 2026-02-27*
+*Última actualización: 2026-03-04*
 *Cada fase se documenta en detalle en su archivo `FASE-N.md` correspondiente*

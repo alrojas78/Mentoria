@@ -4,10 +4,9 @@ import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { authService } from '../services/api';
+import { authService, API_BASE_URL } from '../services/api';
+import { useProject } from '../contexts/ProjectContext';
 import axios from 'axios';
-
-const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
 
 // Animaciones
 const fadeIn = keyframes`
@@ -241,6 +240,7 @@ const MiniChip = () => (
 const AuthModal = ({ isOpen, onClose, initialTab = 'login' }) => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { proyecto } = useProject();
   const [tab, setTab] = useState(initialTab);
 
   // Login state
@@ -309,7 +309,7 @@ const AuthModal = ({ isOpen, onClose, initialTab = 'login' }) => {
   const handleRegister = async (e) => {
     e.preventDefault();
     setRegError('');
-    if (!regRole) {
+    if (!regRole && !proyecto?.rol_default) {
       setRegError('Selecciona un grupo de contenido');
       return;
     }
@@ -349,7 +349,7 @@ const AuthModal = ({ isOpen, onClose, initialTab = 'login' }) => {
         <ModalHeader>
           <LogoRow>
             <MiniChip />
-            <LogoText>MentorIA</LogoText>
+            <LogoText>{proyecto?.nombre || 'MentorIA'}</LogoText>
           </LogoRow>
         </ModalHeader>
 
@@ -425,6 +425,7 @@ const AuthModal = ({ isOpen, onClose, initialTab = 'login' }) => {
                   required
                 />
               </InputGroup>
+              {!proyecto?.rol_default && (
               <InputGroup>
                 <InputLabel>Grupo de contenido</InputLabel>
                 <Select
@@ -446,8 +447,9 @@ const AuthModal = ({ isOpen, onClose, initialTab = 'login' }) => {
                   )}
                 </Select>
               </InputGroup>
+              )}
               {regError && <ErrorMsg>{regError}</ErrorMsg>}
-              <SubmitBtn type="submit" disabled={loadingGroups || !regRole}>
+              <SubmitBtn type="submit" disabled={loadingGroups || (!regRole && !proyecto?.rol_default)}>
                 Crear cuenta
               </SubmitBtn>
               <SwitchText>

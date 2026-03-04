@@ -2,10 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
-import { userService } from '../services/api';
+import { userService, API_BASE_URL } from '../services/api';
 import { FaEdit, FaTrash, FaFilter, FaSearch, FaUserShield, FaUser, FaChalkboardTeacher } from 'react-icons/fa';
-
-const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
 
 const ROLE_COLORS = {
   admin: { bg: '#e3f2fd', color: '#0d47a1' },

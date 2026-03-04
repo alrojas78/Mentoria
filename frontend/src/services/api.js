@@ -1,7 +1,8 @@
 // src/services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = 'https://mentoria.ateneo.co/backend/api';
+export const API_BASE_URL = '/backend/api';
+export const BACKEND_BASE = '/backend';
 
 
 // Interceptor para añadir el token a todas las peticiones
@@ -744,6 +745,127 @@ export const realtimeSessionService = {
   }
 };
 
+export const proyectoService = {
+  list: () => axios.get(`${API_BASE_URL}/admin/proyectos.php`),
+  get: (id) => axios.get(`${API_BASE_URL}/admin/proyectos.php?id=${id}`),
+  create: (formData) => axios.post(`${API_BASE_URL}/admin/proyectos.php`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  update: (formData) => {
+    return axios.post(`${API_BASE_URL}/admin/proyectos.php`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data', 'X-HTTP-Method-Override': 'PUT' }
+    });
+  },
+  updateJSON: (data) => axios.put(`${API_BASE_URL}/admin/proyectos.php`, data),
+  delete: (id) => axios.delete(`${API_BASE_URL}/admin/proyectos.php?id=${id}`),
+  getInfo: () => axios.get(`${API_BASE_URL}/proyecto-info.php`),
+  saveLandingSections: (proyectoId, secciones) => {
+    return axios.put(`${API_BASE_URL}/admin/proyectos.php`, {
+      id: proyectoId,
+      config_json: { landing_secciones: secciones }
+    });
+  },
+  uploadLandingImage: (proyectoId, seccionId, file) => {
+    const formData = new FormData();
+    formData.append('proyecto_id', proyectoId);
+    formData.append('seccion_id', seccionId);
+    formData.append('imagen', file);
+    return axios.post(`${API_BASE_URL}/admin/landing-upload.php`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  // Miembros
+  getMiembros: (proyectoId) =>
+    axios.get(`${API_BASE_URL}/admin/proyectos.php?action=miembros&proyecto_id=${proyectoId}`),
+  addMiembro: (data) =>
+    axios.post(`${API_BASE_URL}/admin/proyectos.php?action=miembros`, data),
+  removeMiembro: (id) =>
+    axios.delete(`${API_BASE_URL}/admin/proyectos.php?action=miembros&id=${id}`),
+  buscarUsuarios: (query) =>
+    axios.get(`${API_BASE_URL}/admin/proyectos.php?action=buscar_usuarios&q=${encodeURIComponent(query)}`),
+};
+
+export const operatixService = {
+  connectWhatsApp: (proyectoId, code) =>
+    axios.post(`${API_BASE_URL}/operatix/connect-whatsapp.php`, { proyecto_id: proyectoId, code }),
+  whatsappStatus: (proyectoId) =>
+    axios.get(`${API_BASE_URL}/operatix/whatsapp-status.php?proyecto_id=${proyectoId}`),
+  disconnectWhatsApp: (proyectoId) =>
+    axios.post(`${API_BASE_URL}/operatix/disconnect-whatsapp.php`, { proyecto_id: proyectoId }),
+  testConnection: () =>
+    axios.get(`${API_BASE_URL}/operatix/test-connection.php`),
+};
+
+// ============ WA Training Service (Fase 11.4) ============
+export const waTrainingService = {
+  // Programas
+  getProgramas: (proyectoId) =>
+    axios.get(`${API_BASE_URL}/admin/wa-programas.php${proyectoId ? '?proyecto_id=' + proyectoId : ''}`),
+  getPrograma: (id) =>
+    axios.get(`${API_BASE_URL}/admin/wa-programas.php?id=${id}`),
+  createPrograma: (data) =>
+    axios.post(`${API_BASE_URL}/admin/wa-programas.php`, data),
+  updatePrograma: (id, data) =>
+    axios.put(`${API_BASE_URL}/admin/wa-programas.php`, { id, ...data }),
+  deletePrograma: (id, hard = false) =>
+    axios.delete(`${API_BASE_URL}/admin/wa-programas.php?id=${id}${hard ? '&hard=1' : ''}`),
+
+  // Entregas
+  getEntregas: (programaId) =>
+    axios.get(`${API_BASE_URL}/admin/wa-entregas.php?programa_id=${programaId}`),
+  getEntrega: (id) =>
+    axios.get(`${API_BASE_URL}/admin/wa-entregas.php?id=${id}`),
+  createEntrega: (data) =>
+    axios.post(`${API_BASE_URL}/admin/wa-entregas.php`, data),
+  updateEntrega: (id, data) =>
+    axios.put(`${API_BASE_URL}/admin/wa-entregas.php`, { id, ...data }),
+  reorderEntregas: (programaId, orden) =>
+    axios.put(`${API_BASE_URL}/admin/wa-entregas.php`, { action: 'reorder', programa_id: programaId, orden }),
+  deleteEntrega: (id) =>
+    axios.delete(`${API_BASE_URL}/admin/wa-entregas.php?id=${id}`),
+
+  // Inscripciones
+  getInscripciones: (programaId) =>
+    axios.get(`${API_BASE_URL}/admin/wa-inscripciones.php?programa_id=${programaId}`),
+  getInscripcion: (id) =>
+    axios.get(`${API_BASE_URL}/admin/wa-inscripciones.php?id=${id}`),
+  createInscripcion: (data) =>
+    axios.post(`${API_BASE_URL}/admin/wa-inscripciones.php`, data),
+  importInscripciones: (programaId, contactos, fechaInicio) =>
+    axios.post(`${API_BASE_URL}/admin/wa-inscripciones.php`, { action: 'import_bulk', programa_id: programaId, contactos, fecha_inicio: fechaInicio }),
+  updateInscripcion: (id, data) =>
+    axios.put(`${API_BASE_URL}/admin/wa-inscripciones.php`, { id, ...data }),
+  deleteInscripcion: (id) =>
+    axios.delete(`${API_BASE_URL}/admin/wa-inscripciones.php?id=${id}`),
+
+  // Interacciones (read-only)
+  getInteracciones: (params) =>
+    axios.get(`${API_BASE_URL}/admin/wa-interacciones.php`, { params }),
+};
+
+// ============ Membership Service (Fase 11.8b) ============
+export const membershipService = {
+  getMisProyectos: () => axios.get(`${API_BASE_URL}/mis-proyectos.php`),
+};
+
+// ============ WA Client Dashboard Service (Fase 11.8) ============
+export const waClientService = {
+  getStatus: (proyectoId) =>
+    axios.get(`${API_BASE_URL}/wa-dashboard.php`, { params: { action: 'status', proyecto_id: proyectoId || undefined } }),
+  getProgramas: (proyectoId) =>
+    axios.get(`${API_BASE_URL}/wa-dashboard.php`, { params: { action: 'programas', proyecto_id: proyectoId || undefined } }),
+  getInscripciones: (programaId, proyectoId) =>
+    axios.get(`${API_BASE_URL}/wa-dashboard.php`, { params: { action: 'inscripciones', programa_id: programaId, proyecto_id: proyectoId || undefined } }),
+  getInteracciones: (params) =>
+    axios.get(`${API_BASE_URL}/wa-dashboard.php`, { params: { action: 'interacciones', ...params } }),
+  getMetricas: (proyectoId) =>
+    axios.get(`${API_BASE_URL}/wa-dashboard.php`, { params: { action: 'metricas', proyecto_id: proyectoId || undefined } }),
+  connectWhatsApp: (code, proyectoId) =>
+    axios.post(`${API_BASE_URL}/wa-dashboard.php`, { action: 'connect-whatsapp', code, proyecto_id: proyectoId || undefined }),
+  disconnectWhatsApp: (proyectoId) =>
+    axios.post(`${API_BASE_URL}/wa-dashboard.php`, { action: 'disconnect-whatsapp', proyecto_id: proyectoId || undefined }),
+};
+
 export default {
   auth: authService,
   courses: courseService,
@@ -762,5 +884,6 @@ export default {
   reto: retoService,  // Servicio de reto semanal
   notificaciones: notificacionService,
   mentor2: mentor2Service,
-  seguimiento: seguimientoService
+  seguimiento: seguimientoService,
+  proyectos: proyectoService
 };

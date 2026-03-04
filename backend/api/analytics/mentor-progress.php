@@ -175,7 +175,7 @@ function getMentorOverview($db, $document_id) {
 function getDetailedProgress($db, $document_id) {
     try {
         $query = "
-            SELECT 
+            SELECT
                 u.id,
                 u.nombre,
                 u.email,
@@ -186,15 +186,22 @@ function getDetailedProgress($db, $document_id) {
                 JSON_LENGTH(COALESCE(dmp.temas_completados, '[]')) as temas_completados,
                 dmp.estructura_contenido,
                 DATEDIFF(COALESCE(dmp.ultima_actualizacion, NOW()), dmp.fecha_inicio) as dias_transcurridos,
-                COUNT(DISTINCT dcs.id) as sesiones_mentor
+                COUNT(DISTINCT dcs.id) as sesiones_mentor,
+                (SELECT COUNT(*) FROM doc_mentor_videos v WHERE v.document_id = :document_id AND v.es_activo = 1) as total_videos,
+                COALESCE((
+                    SELECT COUNT(*) FROM doc_mentor_video_progreso vp
+                    JOIN doc_mentor_videos mv ON mv.id = vp.video_id
+                    WHERE vp.user_id = u.id AND vp.document_id = :document_id
+                    AND (vp.completado = 1 OR vp.timestamp_maximo >= mv.duracion_segundos * 0.9)
+                ), 0) as videos_completados
             FROM doc_mentor_progreso dmp
             INNER JOIN users u ON dmp.user_id = u.id
-            LEFT JOIN doc_conversacion_sesiones dcs ON u.id = dcs.user_id 
+            LEFT JOIN doc_conversacion_sesiones dcs ON u.id = dcs.user_id
                 AND dcs.document_id = :document_id AND dcs.modo = 'mentor'
             WHERE dmp.document_id = :document_id
             GROUP BY u.id, u.nombre, u.email, dmp.modulo_actual, dmp.leccion_actual,
                      dmp.fecha_inicio, dmp.ultima_actualizacion, dmp.temas_completados, dmp.estructura_contenido
-            ORDER BY dmp.modulo_actual DESC, dmp.leccion_actual DESC
+            ORDER BY videos_completados DESC, dmp.modulo_actual DESC, dmp.leccion_actual DESC
         ";
         
         $stmt = $db->prepare($query);
@@ -353,24 +360,17 @@ function getLearningPaths($db, $document_id) {
 // ==========================================
 
 /**
- * Calcular progreso detallado
+ * Calcular progreso basado en videos completados reales
  */
 function calculateDetailedProgress($data) {
-    $modulo = (int)$data['modulo_actual'];
-    $leccion = (int)$data['leccion_actual'];
-    $temas = (int)$data['temas_completados'];
-    
-    // Estimación: 5 módulos, 10 lecciones por módulo, peso por temas completados
-    $max_modulos = 5;
-    $lecciones_por_modulo = 10;
-    $max_lecciones = $max_modulos * $lecciones_por_modulo;
-    
-    $progreso_lecciones = (($modulo - 1) * $lecciones_por_modulo + $leccion) / $max_lecciones;
-    $bonus_temas = ($temas * 0.01); // 1% por cada tema completado
-    
-    $progreso_total = ($progreso_lecciones + $bonus_temas) * 100;
-    
-    return min(100, max(0, round($progreso_total, 1)));
+    $total = isset($data['total_videos']) ? (int)$data['total_videos'] : 0;
+    $completados = isset($data['videos_completados']) ? (int)$data['videos_completados'] : 0;
+
+    if ($total > 0) {
+        return min(100, max(0, round(($completados / $total) * 100, 1)));
+    }
+
+    return 0;
 }
 
 /**
